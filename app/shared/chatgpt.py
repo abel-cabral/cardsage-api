@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+global tagsRaizes
 client = AsyncOpenAI(
   organization=os.getenv('ORGANIZATION'),
   project=os.getenv('PROJECT_ID'),
@@ -19,7 +20,7 @@ async def get_chatgpt_response(messages):
     response = await client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=messages,
-        temperature=0.7
+        temperature=0.1
     )
     return response
 
@@ -44,18 +45,15 @@ async def iniciarConversa(htmlText):
     response = await get_chatgpt_response(messages)
     return response
 
-async def classificarTagsGerais(tagsRaizes, tags):
+async def classificarTagsGerais(raizes, ramos):
+    obj = {
+        "tagsRaizes": raizes,
+        "tagsRamos": ramos
+    }
     message = [
-        {"role": "system", "content": (
-            "Você receberá dois arrays em formato de string: o primeiro array contém 20 tags principais (tags raízes) "
-            "e o segundo array contém 3 tags secundárias (tags ramos). Sua tarefa é analisar as 3 tags secundárias e "
-            "determinar qual das 20 tags principais está mais relacionada a essas tags secundárias. Retorne apenas o "
-            "valor da tag principal (raiz) como uma string. Por exemplo, se as tags principais incluem 'games', 'cultura', "
-            "'teatro', 'filmes', etc., e as tags secundárias são 'PS4', 'Assassin's Creed' e 'Ubisoft', a tag principal "
-            "relacionada seria 'games'.")},
-        {"role": "user", "content": f'{{"tags_raizes": {json.dumps(tagsRaizes)}, "tags_ramos": {json.dumps(tags)}}}'}
+        {"role": "system", "content": ("Irá receber dois arrays em formato de string: o primeiro array contém 20 tags principais (tags raízes) e o segundo array contém 3 tags secundárias (tags ramos). Retorne somente com 1 palavra o nome da tag raiz que mais tem haver com os ramos informados.")},
+        {"role": "user", "content": json.dumps(obj)}
     ]
-    response = await get_chatgpt_response(message)
-    return response['choices'][0]['message']['content']
+    return await get_chatgpt_response(message)
 
 __all__ = ['iniciarConversa', 'classificarTagsGerais']

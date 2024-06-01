@@ -1,6 +1,8 @@
 import os
+
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from bson import ObjectId
 
 load_dotenv()
 
@@ -15,5 +17,29 @@ def collection(collection=False):
         return db[collection]
     return db[os.getenv('COLLECTION')]
 
+# Função para adicionar um novo ramo à tag raiz ou cria-la
+def adicionar_ramo(tag_raiz, novo_ramo):
+    # Procurar o documento da tag raiz
+    db = collection()
+    documento = db.find_one({"tag_raiz": tag_raiz})
+    
+    if documento:
+        # A tag raiz existe, adicionar o novo ramo ao array de tags_ramos
+        response = db.update_one({"_id": documento["_id"]}, {"$push": {"ramos": novo_ramo}})
+        # Retornar o documento atualizado convertendo o ID em string
+        documento['_id'] = str(documento['_id'])
+        return documento
+    else:
+        # A tag raiz não existe, criar um novo documento com a tag raiz e o novo ramo
+        novo_documento = {
+            "tag_raiz": tag_raiz,
+            "ramos": [novo_ramo]
+        }
+        # Inserir o novo documento
+        db.insert_one(novo_documento)
+        # Retornar o documento inserido convertendo o ID em string
+        novo_documento['_id'] = str(novo_documento['_id'])
+        return novo_documento
+
 # Apenas 'collection' será exportado quando importado de outro script
-__all__ = ['collection']
+__all__ = ['collection', 'adicionar_ramo']
