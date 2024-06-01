@@ -1,5 +1,9 @@
+import asyncio
+import json
+
 from flask import Blueprint, jsonify, request
 from .shared.util import purificarHTML, partirHTML
+from .shared.chatgpt import iniciarConversa, get_chatgpt_response
 
 main = Blueprint('main', __name__)
 
@@ -24,9 +28,9 @@ def get_item(item_id):
 @main.route('/api/html', methods=['POST'])
 def create_item():
     data = request.get_json()
-    htmlPurificado = util.purificarHTML(data.get('html', ''))
-    htmlPartido = util.partirHTML(htmlPurificado)
-    return jsonify(htmlPartido), 201
+    htmlPurificado = purificarHTML(data.get('html', ''))
+    response = asyncio.run(iniciarConversa(htmlPurificado))
+    return jsonify(json.loads(response.choices[0].message.content)), 201
 
 @main.route('/api/items/<int:item_id>', methods=['PUT'])
 def update_item(item_id):
