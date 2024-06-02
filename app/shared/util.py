@@ -1,8 +1,12 @@
 import re
 
 def purificarHTML(html):
-    text = re.sub(r'\s+', ' ', html) # Remove múltiplos espaços, novas linhas e tabulações
-    text = text.strip() # Remove espaços no início e no fim do texto
+    # Remove múltiplos espaços, novas linhas e tabulações
+    text = re.sub(r'\s+', ' ', html)
+    # Remove espaços no início e no fim do texto
+    text = text.strip()
+    # Remove aspas duplas
+    text = text.replace('"', '')
     return text
 
 def partirHTML(text, max_length=2000):

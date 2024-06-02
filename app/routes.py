@@ -5,7 +5,8 @@ import os
 from flask import Blueprint, jsonify, request
 from .shared.util import purificarHTML, partirHTML
 from .shared.chatgpt import iniciarConversa, classificarTagsGerais
-from .shared.mongodb import adicionar_ramo
+from .shared.mongodb import adicionar_ramo, collection
+from .shared.html_extractor import extrair_texto_visivel
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -32,11 +33,20 @@ def get_item(item_id):
 
 @main.route('/api/html', methods=['POST'])
 def create_item():
-    # Tratando o HTML
+    # TRATANDO O REQUISIÇÃO
     data = request.get_json()
-    htmlPurificado = purificarHTML(data.get('html', ''))
+    url = data.get('url', '')
     
-    # Extraindo Tags, Resumo e Descrição
+    # VERIFICA SE URL JÁ EXISTE NO BANCO
+    documento_existente = collection().find_one({"url": url})
+    if documento_existente:
+        documento_existente['_id'] = str(documento_existente['_id'])
+        return jsonify("Já existente no banco de dados"), 409
+    
+    # Extrai TEXTO HTML da URL
+    htmlPurificado = extrair_texto_visivel(url)
+    
+    # EXTRAINDO TAGS, RESUMO E DESCRIÇÃO
     chatHtml = asyncio.run(iniciarConversa(htmlPurificado))
     chatData = json.loads(chatHtml.choices[0].message.content)
     
@@ -44,8 +54,8 @@ def create_item():
     tagExtracted = asyncio.run(classificarTagsGerais(os.getenv('TAGLIST').split(", "), tagData))
     tag = tagExtracted.choices[0].message.content
     
-    # Salvando no Banco de Dados
-    response = adicionar_ramo(tag, chatData)
+    # SALVANDO NO BANCO DE DADOS
+    response = adicionar_ramo(tag, chatData, url)
     
     return jsonify(response), 201
 

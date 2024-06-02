@@ -18,13 +18,15 @@ def collection(collection=False):
     return db[os.getenv('COLLECTION')]
 
 # Função para adicionar um novo ramo à tag raiz ou cria-la
-def adicionar_ramo(tag_raiz, novo_ramo):
-    # Procurar o documento da tag raiz
+def adicionar_ramo(tag_raiz, novo_ramo, url):
+    # Obter a coleção
     db = collection()
+    
+    # Procurar o documento da tag raiz
     documento = db.find_one({"tag_raiz": tag_raiz})
     
     if documento:
-        # A tag raiz existe, adicionar o novo ramo ao array de tags_ramos
+        # A tag raiz existe, adicionar o novo ramo ao array de ramos
         response = db.update_one({"_id": documento["_id"]}, {"$push": {"ramos": novo_ramo}})
         # Retornar o documento atualizado convertendo o ID em string
         documento['_id'] = str(documento['_id'])
@@ -33,7 +35,8 @@ def adicionar_ramo(tag_raiz, novo_ramo):
         # A tag raiz não existe, criar um novo documento com a tag raiz e o novo ramo
         novo_documento = {
             "tag_raiz": tag_raiz,
-            "ramos": [novo_ramo]
+            "ramos": [novo_ramo],
+            "url": url
         }
         # Inserir o novo documento
         db.insert_one(novo_documento)
