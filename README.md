@@ -69,13 +69,12 @@ Esta API é projetada para ser utilizada por uma extensão de navegador chamada 
 ### Rotas da API
 
 #### Salvar Item
-	•	Rota: /api/save-item
-	•	Método: POST
-	•	Descrição: Recebe uma URL, extrai o texto do HTML dessa URL, envia os textos para a API da OpenAI para análise e armazena as informações no MongoDB em uma estrutura hierárquica.
-	•	Parâmetros:
-	•	url (string): URL do site a ser analisado.
-	•	Exemplo de solicitação:
+- Rota: /api/save-item
+- Método: POST
+- Descrição: Recebe uma URL, extrai o texto do HTML dessa URL, envia os textos para a API da OpenAI para análise e armazena as informações no MongoDB em uma estrutura hierárquica.
+- Parâmetros: url (string): URL do site a ser analisado.
 
+Exemplo de solicitação:
 ```bash
     curl -X POST http://localhost:5000/api/save-item \
     -H "Content-Type: application/json" \
@@ -83,27 +82,24 @@ Esta API é projetada para ser utilizada por uma extensão de navegador chamada 
 ```
 
 #### Listar Itens
-	•	Rota: /api/list-items
-	•	Método: GET
-	•	Descrição: Retorna uma lista com todos os itens salvos na estrutura hierárquica no MongoDB.
-	•	Exemplo de solicitação:
+- Rota: /api/list-items
+- Método: GET
+- Descrição: Retorna uma lista com todos os itens salvos na estrutura hierárquica no MongoDB.
 
+Exemplo de solicitação:
 ```bash
     curl -X GET http://localhost:5000/api/list-items
 ```
 
 #### Excluir Item
-	•	Rota: /api/delete-items/id
-	•	Método: DELETE
-	•	Descrição: Exclui um item específico do banco de dados pelo seu ID.
-	•	Parâmetros:
-	•	id (string): ID do objeto a ser excluído.
-	•	Exemplo de solicitação:
+- Rota: /api/delete-items/id
+- Método: DELETE
+- Descrição: Exclui um item específico do banco de dados pelo seu ID.
+	Parâmetros: id (string): ID do objeto a ser excluído.
 
+Exemplo de solicitação:
 ```bash
-    curl -X DELETE http://localhost:5000/api/delete-item/id \
-    -H "Content-Type: application/json" \
-    -d '{"id": "id-do-objeto"}'
+    curl -X DELETE http://localhost:5000/api/delete-item/id-do-objeto
 ```
 
 ## Contribuição
