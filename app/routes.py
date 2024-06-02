@@ -5,7 +5,7 @@ import os
 from flask import Blueprint, jsonify, request
 from .shared.util import purificarHTML, partirHTML
 from .shared.chatgpt import iniciarConversa, classificarTagsGerais
-from .shared.mongodb import adicionar_ramo, collection
+from .shared.mongodb import adicionar_ramo, collection, todos_ramos, deletar_ramo_por_id
 from .shared.html_extractor import extrair_texto_visivel
 from dotenv import load_dotenv
 
@@ -13,29 +13,14 @@ load_dotenv()
 
 main = Blueprint('main', __name__)
 
-# Dados de exemplo
-items = [
-    {'id': 1, 'name': 'Item 1', 'price': 10.0},
-    {'id': 2, 'name': 'Item 2', 'price': 20.0},
-]
-
-@main.route('/api/items', methods=['GET'])
-def get_items():
-    return jsonify(items)
-
-@main.route('/api/items/<int:item_id>', methods=['GET'])
-def get_item(item_id):
-    item = next((item for item in items if item['id'] == item_id), None)
-    if item:
-        return jsonify(item)
-    else:
-        return jsonify({'message': 'Item not found'}), 404
-
-@main.route('/api/html', methods=['POST'])
+@main.route('/api/save-item', methods=['POST'])
 def create_item():
-    # TRATANDO O REQUISIÇÃO
+    # TRATANDO O REQUISIÇÃO E VALIDANDO
     data = request.get_json()
     url = data.get('url', '')
+    
+    if not url:
+       return jsonify("Necessário passar um campo 'url' no json"), 422
     
     # VERIFICA SE URL JÁ EXISTE NO BANCO
     documento_existente = collection().find_one({"url": url})
@@ -59,18 +44,12 @@ def create_item():
     
     return jsonify(response), 201
 
-@main.route('/api/items/<int:item_id>', methods=['PUT'])
-def update_item(item_id):
-    item = next((item for item in items if item['id'] == item_id), None)
-    if item:
-        data = request.get_json()
-        item.update(data)
-        return jsonify(item)
-    else:
-        return jsonify({'message': 'Item not found'}), 404
+@main.route('/api/list-items', methods=['GET'])
+def get_items():
+    items = todos_ramos()
+    return jsonify(json.loads(items)), 201
 
-@main.route('/api/items/<int:item_id>', methods=['DELETE'])
+@main.route('/api/delete-item/<string:item_id>', methods=['DELETE'])
 def delete_item(item_id):
-    global items
-    items = [item for item in items if item['id'] != item_id]
-    return jsonify({'message': 'Item deleted'})
+    response = deletar_ramo_por_id(item_id)
+    return jsonify(response)

@@ -1,4 +1,5 @@
 import os
+import json
 
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -44,5 +45,41 @@ def adicionar_ramo(tag_raiz, novo_ramo, url):
         novo_documento['_id'] = str(novo_documento['_id'])
         return novo_documento
 
+def todos_ramos():
+    # Obter a coleção
+    db = collection()
+
+    # Recuperar todos os documentos com base no critério
+    documentos = db.find()
+    
+    # Converter os documentos em uma lista para facilitar o manuseio
+    lista_documentos = list(documentos)
+
+    # Converter ObjectId para strings
+    for doc in lista_documentos:
+        if '_id' in doc:
+            doc['_id'] = str(doc['_id'])
+
+    # Serializar a lista de documentos para JSON
+    json_documentos = json.dumps(lista_documentos)
+
+    return json_documentos
+
+def deletar_ramo_por_id(id):
+    # Converter o ID para o tipo ObjectId
+    obj_id = ObjectId(id)
+
+    # Obter a coleção
+    db = collection()
+
+    # Deletar o documento com o ID especificado
+    resultado = db.delete_one({"_id": obj_id})
+
+    # Verificar se o documento foi deletado com sucesso
+    if resultado.deleted_count == 1:
+        return f"Documento com ID {id} deletado com sucesso."
+    else:
+        return f"Nenhum documento encontrado com o ID {id}."
+
 # Apenas 'collection' será exportado quando importado de outro script
-__all__ = ['collection', 'adicionar_ramo']
+__all__ = ['collection', 'adicionar_ramo', 'todos_ramos', 'deletar_ramo_por_id']
