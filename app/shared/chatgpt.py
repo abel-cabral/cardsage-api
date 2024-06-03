@@ -12,7 +12,7 @@ client = AsyncOpenAI(
   api_key=os.getenv('OPENAI_API_KEY')
 )
 
-instrucao = "Resuma o texto em até duas linhas (máximo 240 caracteres); Gere três tags de uma palavra que não sejam [{}], e que representem os principais tópicos do texto; Gere um titulo para o texto; A resposta deve ser unicamente no formato JSON com as seguintes propriedades: titulo (titulo do resumo), descricao (resumo), tag1 (primeira tag), tag2 (segunda tag) e tag3 (terceira tag); Se não ouver informações o suficiente classifique como 'Indefinido' em todos os campos".format(os.getenv('TAGLIST'))
+instrucao = "Resuma o texto em até duas linhas (máximo 240 caracteres); Com base no texto gere três tags de até 2 palavra que não estejam nesta lista: [{}]; Gere um titulo para o texto; A resposta deve ser unicamente no formato JSON com as seguintes propriedades: titulo (titulo do resumo), descricao (resumo), tag1 (primeira tag), tag2 (segunda tag) e tag3 (terceira tag); Se não ouver informações o suficiente classifique como 'Indefinido' em todos os campos".format(os.getenv('TAGLIST'))
 
 async def get_chatgpt_response(messages):
     response = await client.chat.completions.create(
