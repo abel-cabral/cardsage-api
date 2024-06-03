@@ -25,7 +25,6 @@ def create_item():
     # VERIFICA SE URL JÁ EXISTE NO BANCO
     documento_existente = collection().find_one({"url": url})
     if documento_existente:
-        documento_existente['_id'] = str(documento_existente['_id'])
         return jsonify("Já existente no banco de dados"), 409
     
     # Extrai TEXTO HTML da URL
@@ -34,13 +33,21 @@ def create_item():
     # EXTRAINDO TAGS, RESUMO E DESCRIÇÃO
     chatHtml = asyncio.run(iniciarConversa(htmlPurificado))
     chatData = json.loads(chatHtml.choices[0].message.content)
+    chatData['url'] = url
     
     tagData = [chatData['tag1'], chatData['tag2'], chatData['tag3']]
-    tagExtracted = asyncio.run(classificarTagsGerais(os.getenv('TAGLIST').split(", "), tagData))
+    tagExtracted = asyncio.run(classificarTagsGerais(os.getenv('TAGLIST').split(", "), chatData['descricao']))
     tag = tagExtracted.choices[0].message.content
     
     # SALVANDO NO BANCO DE DADOS
-    response = adicionar_ramo(tag, chatData, url)
+    mongo_response = adicionar_ramo(tag, chatData)
+    
+    if 'message' in mongo_response:
+        return mongo_response['message'], 415
+    
+    # Tratando retorno
+    response = mongo_response['ramos'][len(mongo_response['ramos']) - 1]
+    response['tag_raiz'] = mongo_response['tag_raiz']
     
     return jsonify(response), 201
 
