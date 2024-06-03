@@ -45,7 +45,7 @@ def create_item():
     if 'message' in mongo_response:
         return mongo_response['message'], 415
     
-    # Tratando retorno
+    # TRATANDO O RETORNO
     response = mongo_response['ramos'][len(mongo_response['ramos']) - 1]
     response['tag_raiz'] = mongo_response['tag_raiz']
     
