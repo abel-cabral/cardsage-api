@@ -1,5 +1,6 @@
 import os
 import json
+import uuid
 
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -19,31 +20,30 @@ def collection(collection=False):
     return db[os.getenv('COLLECTION')]
 
 # Função para adicionar um novo ramo à tag raiz ou cria-la
-def adicionar_ramo(tag_raiz, novo_ramo, url):
+def adicionar_ramo(tag_raiz, novo_ramo):
     # Obter a coleção
     db = collection()
-    
-    # Procurar o documento da tag raiz
-    documento = db.find_one({"tag_raiz": tag_raiz})
-    
+
+    # Verificar se já existe um ramo com a mesma URL
+    documento = db.find_one({"tag_raiz": tag_raiz, "ramos.url": novo_ramo["url"]})
     if documento:
-        # A tag raiz existe, adicionar o novo ramo ao array de ramos
-        response = db.update_one({"_id": documento["_id"]}, {"$push": {"ramos": novo_ramo}})
-        # Retornar o documento atualizado convertendo o ID em string
-        documento['_id'] = str(documento['_id'])
-        return documento
-    else:
-        # A tag raiz não existe, criar um novo documento com a tag raiz e o novo ramo
-        novo_documento = {
-            "tag_raiz": tag_raiz,
-            "ramos": [novo_ramo],
-            "url": url
-        }
-        # Inserir o novo documento
-        db.insert_one(novo_documento)
-        # Retornar o documento inserido convertendo o ID em string
-        novo_documento['_id'] = str(novo_documento['_id'])
-        return novo_documento
+        return {"message": "Um ramo com essa URL já existe."}
+
+    # Gerar um ID único para o novo ramo
+    novo_ramo["_id"] = str(uuid.uuid4())
+
+    # Adicionar o novo ramo ao array de ramos no documento da tag raiz
+    resultado = db.update_one(
+        {"tag_raiz": tag_raiz},
+        {"$push": {"ramos": novo_ramo}},
+        upsert=True
+    )
+
+    # Buscar novamente o documento atualizado
+    documento_atualizado = db.find_one({"tag_raiz": tag_raiz})
+    documento_atualizado['_id'] = str(documento_atualizado['_id'])
+
+    return documento_atualizado
 
 def todos_ramos():
     # Obter a coleção
@@ -65,21 +65,21 @@ def todos_ramos():
 
     return json_documentos
 
-def deletar_ramo_por_id(id):
-    # Converter o ID para o tipo ObjectId
-    obj_id = ObjectId(id)
-
+def deletar_ramo_por_id(ramo_id):
     # Obter a coleção
     db = collection()
 
-    # Deletar o documento com o ID especificado
-    resultado = db.delete_one({"_id": obj_id})
+    # Atualizar o documento para remover o ramo com o ID especificado
+    resultado = db.update_one(
+        {"ramos._id": ramo_id},
+        {"$pull": {"ramos": {"_id": ramo_id}}}
+    )
 
-    # Verificar se o documento foi deletado com sucesso
-    if resultado.deleted_count == 1:
-        return f"Documento com ID {id} deletado com sucesso."
+    # Verificar se o ramo foi deletado com sucesso
+    if resultado.modified_count == 1:
+        return f"Ramo com ID {ramo_id} deletado com sucesso."
     else:
-        return f"Nenhum documento encontrado com o ID {id}."
+        return f"Nenhum ramo encontrado com o ID {ramo_id}."
 
 # Apenas 'collection' será exportado quando importado de outro script
 __all__ = ['collection', 'adicionar_ramo', 'todos_ramos', 'deletar_ramo_por_id']
