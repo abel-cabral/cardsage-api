@@ -5,6 +5,7 @@ import uuid
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from bson import ObjectId
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 load_dotenv()
 
@@ -23,9 +24,10 @@ def collection(collection=False):
 def adicionar_ramo(tag_raiz, novo_ramo):
     # Obter a coleção
     db = collection()
+    user_id = get_jwt_identity()
 
     # Verificar se já existe um ramo com a mesma URL
-    documento = db.find_one({"tag_raiz": tag_raiz, "ramos.url": novo_ramo["url"]})
+    documento = db.find_one({"tag_raiz": tag_raiz, "user_id": user_id, "ramos.url": novo_ramo["url"]})
     if documento:
         return {"message": "Um ramo com essa URL já existe."}
 
@@ -34,24 +36,24 @@ def adicionar_ramo(tag_raiz, novo_ramo):
 
     # Adicionar o novo ramo ao array de ramos no documento da tag raiz
     resultado = db.update_one(
-        {"tag_raiz": tag_raiz},
+        {"tag_raiz": tag_raiz, "user_id": user_id},
         {"$push": {"ramos": novo_ramo}},
         upsert=True
     )
 
     # Buscar novamente o documento atualizado
-    documento_atualizado = db.find_one({"tag_raiz": tag_raiz})
+    documento_atualizado = db.find_one({"tag_raiz": tag_raiz, "user_id": user_id})
     documento_atualizado['_id'] = str(documento_atualizado['_id'])
 
     return documento_atualizado
 
 def todos_ramos():
-    # Obter a coleção
-    db = collection()
+    # Obter o ID do usuário atual
+    user_id = get_jwt_identity()
 
-    # Recuperar todos os documentos com base no critério
-    documentos = db.find()
-    
+    # Recuperar todos os documentos associados ao ID do usuário
+    documentos = collection().find({"user_id": user_id})
+
     # Converter os documentos em uma lista para facilitar o manuseio
     lista_documentos = list(documentos)
 
@@ -62,7 +64,7 @@ def todos_ramos():
 
     # Serializar a lista de documentos para JSON
     json_documentos = json.dumps(lista_documentos)
-
+    
     return json_documentos
 
 def deletar_ramo_por_id(ramo_id):

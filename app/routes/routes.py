@@ -3,10 +3,11 @@ import json
 import os
 
 from flask import Blueprint, jsonify, request
-from .shared.util import purificarHTML, partirHTML
-from .shared.chatgpt import iniciarConversa, classificarTagsGerais
-from .shared.mongodb import adicionar_ramo, collection, todos_ramos, deletar_ramo_por_id
-from .shared.html_extractor import extrair_texto_visivel
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from ..shared.util import purificarHTML, partirHTML
+from ..shared.chatgpt import iniciarConversa, classificarTagsGerais
+from ..shared.mongodb import adicionar_ramo, collection, todos_ramos, deletar_ramo_por_id
+from ..shared.html_extractor import extrair_texto_visivel
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -14,6 +15,7 @@ load_dotenv()
 main = Blueprint('main', __name__)
 
 @main.route('/api/save-item', methods=['POST'])
+@jwt_required()
 def create_item():
     # TRATANDO O REQUISIÇÃO E VALIDANDO
     data = request.get_json()
@@ -22,10 +24,11 @@ def create_item():
     if not url:
        return jsonify("Necessário passar um campo 'url' no json"), 422
     
-    # VERIFICA SE URL JÁ EXISTE NO BANCO
-    documento_existente = collection().find_one({"url": url})
+    # Verifica se a URL já existe no banco para o usuário logado
+    user_id = get_jwt_identity()
+    documento_existente = collection().find_one({"url": url, "user_id": user_id})
     if documento_existente:
-        return jsonify("Já existente no banco de dados"), 409
+        return jsonify("Já existe uma URL associado a este usuário"), 409
     
     # Extrai TEXTO HTML da URL
     htmlPurificado = extrair_texto_visivel(url)
@@ -46,17 +49,21 @@ def create_item():
         return mongo_response['message'], 415
     
     # TRATANDO O RETORNO
-    response = mongo_response['ramos'][len(mongo_response['ramos']) - 1]
+    response = mongo_response['ramos'][-1]
     response['tag_raiz'] = mongo_response['tag_raiz']
     
     return jsonify(response), 201
 
 @main.route('/api/list-items', methods=['GET'])
+@jwt_required()
 def get_items():
     items = todos_ramos()
     return jsonify(json.loads(items)), 201
 
 @main.route('/api/delete-item/<string:item_id>', methods=['DELETE'])
+@jwt_required()
 def delete_item(item_id):
     response = deletar_ramo_por_id(item_id)
     return jsonify(response)
+
+__all__ = ['create_item', 'get_items', 'delete_item']
