@@ -14,6 +14,4 @@ pyppeteer==2.0.0
 pysocks==1.7.1
 quart==0.19.6
 redis==5.0.4
-selenium==4.21.0
 uvicorn==0.30.0
-webdriver-manager==4.0.1

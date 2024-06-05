@@ -102,11 +102,6 @@ Exemplo de solicitação:
     curl -X DELETE http://localhost:5000/api/delete-item/id-do-objeto
 ```
 
-### Deploy Heroku
-```bash
-    heroku buildpacks:add --app websage-api -i 1 heroku-community/chrome-for-testing
-```
-
 ## Contribuição
 
 Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou enviar pull requests.
