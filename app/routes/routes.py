@@ -30,7 +30,7 @@ def create_item():
     
     # Verifica se a URL já existe no banco para o usuário logado
     user_id = get_jwt_identity()
-    documento_existente = collection().find_one({"url": url, "user_id": user_id})
+    documento_existente = collection().find_one({"user_id": user_id, "ramos.url": url})
     if documento_existente:
         return jsonify("Já existe uma URL associado a este usuário"), 409
     
@@ -65,7 +65,7 @@ def create_item():
 @jwt_required()
 def get_items():
     # Use uma chave única para representar os dados que deseja armazenar em cache
-    cache_key = 'list_items'
+    cache_key = get_jwt_identity()
     cached_data = r.get(cache_key)
     if cached_data:
         return json.loads(cached_data), 200
@@ -79,7 +79,7 @@ def get_items():
 def delete_item(item_id):
     response = deletar_ramo_por_id(item_id)
     # Invalida o cache para a rota de listagem de itens
-    r.delete('list_items')
+    r.delete(get_jwt_identity())
     return jsonify(response), 204
 
 @main.route('/api/redis-keys', methods=['GET'])
@@ -91,13 +91,12 @@ def redis_keys():
         cache_contents = {}
         for key in keys:
             cache_contents[key.decode('utf-8')] = r.get(key).decode('utf-8')
-        
         return jsonify(cache_contents), 200
     except Exception as e:
         return jsonify({"message": "Error accessing Redis", "error": str(e)}), 500
 
 def update_cache():
     # Atualiza o cache para a lista de itens
-    cache_key = 'list_items'
+    cache_key = get_jwt_identity()
     items = todos_ramos()
     r.set(cache_key, items)

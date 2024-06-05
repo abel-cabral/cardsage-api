@@ -26,11 +26,6 @@ def adicionar_ramo(tag_raiz, novo_ramo):
     db = collection()
     user_id = get_jwt_identity()
 
-    # Verificar se já existe um ramo com a mesma URL
-    documento = db.find_one({"tag_raiz": tag_raiz, "user_id": user_id, "ramos.url": novo_ramo["url"]})
-    if documento:
-        return {"message": "Um ramo com essa URL já existe."}
-
     # Gerar um ID único para o novo ramo
     novo_ramo["_id"] = str(uuid.uuid4())
 
