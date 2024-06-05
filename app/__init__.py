@@ -7,6 +7,7 @@ from .jwt_config import configure_jwt
 from .shared import collection
 from .routes.auth import auth_bp
 from .routes.routes import main
+from flask_cors import CORS
 
 def create_app():
     app = Flask(__name__)
@@ -15,7 +16,8 @@ def create_app():
     # Configure JWT
     configure_jwt(app)
     
-    # initCache(app)
+    # Enable CORS for the app
+    CORS(app)
     
     app.register_blueprint(main)
     app.register_blueprint(auth_bp)
