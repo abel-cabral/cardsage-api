@@ -104,8 +104,7 @@ Exemplo de solicitação:
 
 ### Deploy Heroku
 ```bash
-    heroku buildpacks:add --app meu-app --index 1 https://github.com/heroku/heroku-buildpack-google-chrome  
-    heroku buildpacks:add --app meu-app --index 2 https://github.com/heroku/heroku-buildpack-chromedriver
+    heroku buildpacks:add --app websage-api -i 1 heroku-community/chrome-for-testing
 ```
 
 ## Contribuição
