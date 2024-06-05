@@ -8,13 +8,14 @@ from .shared import collection
 from .routes.auth import auth_bp
 from .routes.routes import main
 
-tagsRaizes = []
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
     # Configure JWT
     configure_jwt(app)
+    
+    # initCache(app)
     
     app.register_blueprint(main)
     app.register_blueprint(auth_bp)
