@@ -10,15 +10,17 @@ from bs4 import BeautifulSoup
 from .util import purificarHTML
 
 
-# Configurar o driver do Selenium com opções headless
+# Configurar o driver e chrome do Selenium com opções headless
 options = Options()
 if (os.getenv('MODE') == 'prod'):
     options.binary_location = '/app/.chrome-for-testing/chrome-linux64/chrome'
+    service = Service('/app/.chrome-for-testing/chromedriver-linux64/chromedriver')
+else:
+    service = Service(ChromeDriverManager().install())
+
 options.add_argument('--disable-gpu')
 options.add_argument('--no-sandbox')
 options.add_argument('--headless')
-
-service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=options)
 
 def html_extrator(url, max_retries=3, wait_time=20):
