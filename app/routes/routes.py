@@ -4,10 +4,10 @@ import os
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from ..shared.util import purificarHTML, partirHTML
+from ..shared.util import purificarHTML
 from ..shared.chatgpt import iniciarConversa, classificarTagsGerais
 from ..shared.mongodb import adicionar_ramo, collection, todos_ramos, deletar_ramo_por_id
-from ..shared.html_extractor import extrair_texto_visivel
+from ..shared.selenium_html_extractor import html_extrator
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -31,10 +31,10 @@ def create_item():
         return jsonify("Já existe uma URL associado a este usuário"), 409
     
     # Extrai TEXTO HTML da URL
-    htmlPurificado = extrair_texto_visivel(url)
+    html_texto = html_extrator(url)
     
     # EXTRAINDO TAGS, RESUMO E DESCRIÇÃO
-    chatHtml = asyncio.run(iniciarConversa(htmlPurificado))
+    chatHtml = asyncio.run(iniciarConversa(html_texto))
     chatData = json.loads(chatHtml.choices[0].message.content)
     chatData['url'] = url
     
@@ -58,12 +58,12 @@ def create_item():
 @jwt_required()
 def get_items():
     items = todos_ramos()
-    return jsonify(json.loads(items)), 201
+    return jsonify(json.loads(items)), 200
 
 @main.route('/api/delete-item/<string:item_id>', methods=['DELETE'])
 @jwt_required()
 def delete_item(item_id):
     response = deletar_ramo_por_id(item_id)
-    return jsonify(response)
+    return jsonify(response), 204
 
 __all__ = ['create_item', 'get_items', 'delete_item']
