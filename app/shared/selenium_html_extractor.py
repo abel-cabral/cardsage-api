@@ -13,7 +13,7 @@ from .util import purificarHTML
 # Configurar o driver do Selenium com opções headless
 options = Options()
 if (os.getenv('MODE') == 'prod'):
-    options.binary_location = '/app/.apt/usr/bin/google-chrome'
+    options.binary_location = '/app/.chrome-for-testing/chrome-linux64/chrome'
 options.add_argument('--disable-gpu')
 options.add_argument('--no-sandbox')
 options.add_argument('--headless')
