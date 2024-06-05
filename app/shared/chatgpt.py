@@ -12,7 +12,7 @@ client = AsyncOpenAI(
   api_key=os.getenv('OPENAI_API_KEY')
 )
 
-instrucao = "Resuma o texto em até duas linhas (máximo 240 caracteres); Com base no texto gere três tags de até 2 palavra que não estejam nesta lista: [{}]; Gere um titulo para o texto; A resposta deve ser unicamente no formato JSON com as seguintes propriedades: titulo (titulo do resumo), descricao (resumo), tag1 (primeira tag), tag2 (segunda tag) e tag3 (terceira tag); Se não ouver informações o suficiente classifique como 'Indefinido' em todos os campos".format(os.getenv('TAGLIST'))
+instrucao = "Resuma o texto em até duas linhas (máximo 240 caracteres). Com base no texto, gere três tags de até 10 caracteres cada, que não estejam nesta lista: [{}]. Gere um título para o texto. A resposta deve ser unicamente no formato JSON com as seguintes propriedades: 'titulo' (título do resumo), 'descricao' (resumo), 'tag1' (primeira tag), 'tag2' (segunda tag), e 'tag3' (terceira tag). Se não houver informações suficientes, classifique todos os campos como 'Indefinido'.".format(os.getenv('TAGLIST'))
 
 async def get_chatgpt_response(messages):
     response = await client.chat.completions.create(
@@ -47,7 +47,7 @@ async def classificarTagsGerais(raizes, descricao):
         "descricao": descricao
     }
     message = [
-        {"role": "system", "content": ("A Resposta deverá ser uma unica palavra; Irá receber dois elementos: o primeiro array contém 20 tags raízes e o segundo contém um texto; Retorne somente com apenas somente 1 palavra o nome da tag raiz que mais tem haver com texto. ex: 'Games'")},
+        {"role": "system", "content": "A resposta deve ser uma única palavra. Você receberá dois elementos: um array contendo 20 tags raízes [{}] e um texto. Retorne o nome da tag raiz que mais se relaciona com o texto. Por exemplo: 'Games'. A tag gerada deve ser necessariamente uma das 20 tags do array fornecido. Se o texto parecer estranho ou sem sentido, possivelmente devido a um erro de extração, retorne 'Indefinido'.".format(os.getenv('TAGLIST'))},
         {"role": "user", "content": json.dumps(obj)}
     ]
     return await get_chatgpt_response(message)

@@ -22,3 +22,5 @@ def partirHTML(text, max_length=2000):
         text = text[split_index:].strip()
     segments.append(text)
     return segments
+
+__all__ = ['partirHTML', 'purificarHTML']
