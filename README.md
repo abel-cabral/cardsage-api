@@ -102,6 +102,12 @@ Exemplo de solicitação:
     curl -X DELETE http://localhost:5000/api/delete-item/id-do-objeto
 ```
 
+### Deploy Heroku
+```bash
+    heroku buildpacks:add --app meu-app --index 1 https://github.com/heroku/heroku-buildpack-google-chrome  
+    heroku buildpacks:add --app meu-app --index 2 https://github.com/heroku/heroku-buildpack-chromedriver
+```
+
 ## Contribuição
 
 Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou enviar pull requests.
@@ -109,3 +115,4 @@ Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou enviar
 ## Licença
 
 Este projeto está licenciado sob a MIT License.
+
