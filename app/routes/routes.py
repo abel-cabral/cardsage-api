@@ -7,8 +7,9 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..shared.util import purificarHTML
 from ..shared.chatgpt import iniciarConversa, classificarTagsGerais
-from ..shared.mongodb import adicionar_ramo, collection, todos_ramos, deletar_ramo_por_id
+from ..shared.mongodb import adicionar_ramo, collection, todos_ramos, deletar_ramo_por_id, atualizar_ramo
 from ..shared.selenium_html_extractor import html_extrator
+from bson.objectid import ObjectId
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -73,6 +74,48 @@ def get_items():
         items = todos_ramos()
         r.set(cache_key, items)
         return jsonify(json.loads(items)), 200
+
+@main.route('/api/atualizar-item', methods=['PUT'])
+@jwt_required()
+def update_item():
+    # Tratando a requisição e validando
+    data = request.get_json()
+    imageUrl = data.get('imageUrl', '')
+    ramo_id = data.get('ramo_id', '')
+    _id = data.get('_id', '')
+
+    if not imageUrl:
+        return jsonify("Necessário passar um campo 'imageUrl' no json"), 422
+
+    if not ramo_id:
+        return jsonify("Necessário passar um campo 'ramo_id' no json"), 422
+
+    if not _id:
+        return jsonify("Necessário passar um campo '_id' no json"), 422
+
+    try:
+        _id_obj = ObjectId(_id)
+    except Exception as e:
+        return jsonify("ID do objeto inválido"), 422
+
+    # Busca pela tag no banco que esteja relacionada ao usuario logado e com id do ramo valido
+    user_id = get_jwt_identity()
+    documento_existente = collection().find_one({"_id": _id_obj, "user_id": user_id, "ramos._id": ramo_id})
+
+    if not documento_existente:
+        return jsonify("Item não encontrado no banco de dados ou usuário não autorizado"), 404
+
+    # Atualizando o campo imageUrl no ramo específico
+    resultado = atualizar_ramo(_id_obj, ramo_id, imageUrl, user_id)
+
+    # Verificar se a atualização foi bem-sucedida
+    if resultado.modified_count == 0:
+        return jsonify("Nenhum documento foi atualizado. Verifique os parâmetros fornecidos."), 400
+
+    # Atualiza o cache após a atualização (implementação da função update_cache)
+    update_cache()
+
+    return '', 204
 
 @main.route('/api/delete-item/<string:item_id>', methods=['DELETE'])
 @jwt_required()

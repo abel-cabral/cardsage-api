@@ -42,6 +42,22 @@ def adicionar_ramo(tag_raiz, novo_ramo):
 
     return documento_atualizado
 
+# Função para atualizar ramo adicionando url
+def atualizar_ramo(_id, ramo_id, imageUrl, user_id):
+   # Obter a coleção
+    db = collection()
+    user_id = get_jwt_identity()
+
+    # Atualizar o campo imageUrl do ramo específico no array ramos
+    resultado = db.update_one(
+        {"_id": _id, "user_id": user_id, "ramos._id": ramo_id},
+        {"$set": {"ramos.$.imageUrl": imageUrl}},
+        upsert=True  # Isso permite criar o campo se ele não existir
+    )
+
+    return resultado
+
+
 def todos_ramos():
     # Obter o ID do usuário atual
     user_id = get_jwt_identity()
@@ -79,4 +95,4 @@ def deletar_ramo_por_id(ramo_id):
         return f"Nenhum ramo encontrado com o ID {ramo_id}."
 
 # Apenas 'collection' será exportado quando importado de outro script
-__all__ = ['collection', 'adicionar_ramo', 'todos_ramos', 'deletar_ramo_por_id']
+__all__ = ['collection', 'adicionar_ramo', 'todos_ramos', 'deletar_ramo_por_id', 'atualizar_ramo']
