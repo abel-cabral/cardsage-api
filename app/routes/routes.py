@@ -44,7 +44,7 @@ def create_item():
     chatData['url'] = url
     
     tagData = [chatData['tag1'], chatData['tag2'], chatData['tag3']]
-    tag = asyncio.run(classificarTagsGerais(os.getenv('TAGLIST').split(", "), chatData['descricao']))
+    tag = asyncio.run(classificarTagsGerais(chatData['descricao']))
     
     # SALVANDO NO BANCO DE DADOS
     mongo_response = adicionar_ramo(tag, chatData)
