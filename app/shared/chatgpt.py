@@ -7,7 +7,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Verificar se a variável TAGLIST está carregada corretamente
-taglist = os.getenv('TAGLIST')
+taglistEnv = os.getenv('TAGLIST')
+taglist = taglistEnv.split(',')
 
 client = AsyncOpenAI(
     organization=os.getenv('ORGANIZATION'),
@@ -125,7 +126,7 @@ async def iniciarConversa(htmlText):
 
 async def classificarTagsGerais(descricao):
     obj = {
-        "tagsRaizes": os.getenv('TAGLIST'),
+        "tagsRaizes": raizes,
         "descricao": descricao
     }
     message = [
