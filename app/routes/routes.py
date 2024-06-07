@@ -117,10 +117,18 @@ def update_item():
 
     return '', 204
 
-@main.route('/api/delete-item/<string:item_id>', methods=['DELETE'])
+@main.route('/api/delete-item/<string:ramo_id>', methods=['DELETE'])
 @jwt_required()
-def delete_item(item_id):
-    response = deletar_ramo_por_id(item_id)
+def delete_item(ramo_id):
+    # Busca pelo id no banco que esteja relacionada ao usuario logado
+    user_id = get_jwt_identity()
+    documento_existente = collection().find_one({"user_id": user_id, "ramos._id": ramo_id})
+
+    if not documento_existente:
+        return jsonify("Item não encontrado no banco de dados ou usuário não autorizado"), 404
+    
+    response = deletar_ramo_por_id(ramo_id)
+    
     # Invalida o cache para a rota de listagem de itens
     r.delete(get_jwt_identity())
     return jsonify(response), 204
