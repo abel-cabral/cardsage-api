@@ -40,12 +40,11 @@ def create_item():
     
     # EXTRAINDO TAGS, RESUMO E DESCRIÇÃO
     chatHtml = asyncio.run(iniciarConversa(html_texto))
-    chatData = json.loads(chatHtml.choices[0].message.content)
+    chatData = chatHtml
     chatData['url'] = url
     
     tagData = [chatData['tag1'], chatData['tag2'], chatData['tag3']]
-    tagExtracted = asyncio.run(classificarTagsGerais(os.getenv('TAGLIST').split(", "), chatData['descricao']))
-    tag = tagExtracted.choices[0].message.content
+    tag = asyncio.run(classificarTagsGerais(os.getenv('TAGLIST').split(", "), chatData['descricao']))
     
     # SALVANDO NO BANCO DE DADOS
     mongo_response = adicionar_ramo(tag, chatData)
