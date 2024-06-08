@@ -1,6 +1,7 @@
 import os
+import json
 
-from flask import Flask
+from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from config import Config
 from .jwt_config import configure_jwt
@@ -22,7 +23,12 @@ def create_app():
     app.register_blueprint(main)
     app.register_blueprint(auth_bp)
     
-     # Carrega os dados do banco de dados e armazena na variável global
+    # Carrega os dados do banco de dados e armazena na variável global
     response = collection('tags-raizes').find()
-    os.environ['TAGLIST'] = ", ".join((list(response))[0]['TagsBase'])
+    tags_base = [tag for doc in response for tag in doc['TagsBase']]  # Desempacota as listas internas
+    os.environ['TAGLIST'] = ", ".join(str(tag) for tag in tags_base)  # Converte cada tag para uma string
+    
+    # Imprimir os valores de TagsBase
+    print(os.environ['TAGLIST'].split(','))
+    
     return app
