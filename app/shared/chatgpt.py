@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Verificar se a variável TAGLIST está carregada corretamente
-taglist = os.environ['TAGLIST'].split(',')
+taglist = os.getenv('TAGLIST').split(',')
 
 client = AsyncOpenAI(
     organization=os.getenv('ORGANIZATION'),
@@ -150,8 +150,6 @@ async def validar_tag(chat, vezes=0):
         correction_instructions.append("A tag_raiz informada não está presente na lista informada {}, tag_raiz deve ser uma tag presente nesta lista".format(taglist))
 
     if needs_correction:
-        print(taglist)
-        print(chat)
         correction_message = "\n".join(correction_instructions)
         messages = [
             {"role": "system", "content": promptClassificarTag},
