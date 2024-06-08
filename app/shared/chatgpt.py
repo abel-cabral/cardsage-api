@@ -151,6 +151,8 @@ async def validar_tag(chat, vezes=0):
         correction_instructions.append("A tag_raiz informada não está presente na lista informada {}, tag_raiz deve ser uma tag presente nesta lista".format(taglist))
 
     if needs_correction:
+        print(taglist)
+        print(chat)
         correction_message = "\n".join(correction_instructions)
         messages = [
             {"role": "system", "content": promptClassificarTag},
