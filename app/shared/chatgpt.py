@@ -126,7 +126,7 @@ async def iniciarConversa(htmlText):
 
 async def classificarTagsGerais(descricao):
     obj = {
-        "tagsRaizes": raizes,
+        "tagsRaizes": taglist,
         "descricao": descricao
     }
     message = [
@@ -147,8 +147,6 @@ async def validar_tag(chat, vezes=0):
     correction_instructions = []
 
     if value not in taglist:
-        print(value)
-        print(taglist)
         needs_correction = True
         correction_instructions.append("A tag_raiz informada não está presente na lista informada {}, tag_raiz deve ser uma tag presente nesta lista".format(taglist))
 
