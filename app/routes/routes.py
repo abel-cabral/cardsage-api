@@ -81,7 +81,6 @@ def update_item():
     data = request.get_json()
     imageUrl = data.get('imageUrl', '')
     ramo_id = data.get('ramo_id', '')
-    _id = data.get('_id', '')
 
     if not imageUrl:
         return jsonify("Necessário passar um campo 'imageUrl' no json"), 422
@@ -89,23 +88,15 @@ def update_item():
     if not ramo_id:
         return jsonify("Necessário passar um campo 'ramo_id' no json"), 422
 
-    if not _id:
-        return jsonify("Necessário passar um campo '_id' no json"), 422
-
-    try:
-        _id_obj = ObjectId(_id)
-    except Exception as e:
-        return jsonify("ID do objeto inválido"), 422
-
     # Busca pela tag no banco que esteja relacionada ao usuario logado e com id do ramo valido
     user_id = get_jwt_identity()
-    documento_existente = collection().find_one({"_id": _id_obj, "user_id": user_id, "ramos._id": ramo_id})
+    documento_existente = collection().find_one({"user_id": user_id, "ramos._id": ramo_id})
 
     if not documento_existente:
         return jsonify("Item não encontrado no banco de dados ou usuário não autorizado"), 404
 
     # Atualizando o campo imageUrl no ramo específico
-    resultado = atualizar_ramo(_id_obj, ramo_id, imageUrl, user_id)
+    resultado = atualizar_ramo(ramo_id, imageUrl, user_id)
 
     # Verificar se a atualização foi bem-sucedida
     if resultado.modified_count == 0:
