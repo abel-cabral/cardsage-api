@@ -58,7 +58,7 @@ def atualizar_ramo(ramo_id, imageUrl, user_id):
 
 
 def todos_ramos():
-    # Obter o ID do usuário atual
+     # Obter o ID do usuário atual
     user_id = get_jwt_identity()
 
     # Recuperar todos os documentos associados ao ID do usuário
@@ -67,10 +67,19 @@ def todos_ramos():
     # Converter os documentos em uma lista para facilitar o manuseio
     lista_documentos = list(documentos)
 
+    # Inverter a lista de ramos em cada documento
+    for doc in lista_documentos:
+        if 'ramos' in doc:
+            doc['ramos'] = list(reversed(doc['ramos']))
+
     # Converter ObjectId para strings
     for doc in lista_documentos:
         if '_id' in doc:
             doc['_id'] = str(doc['_id'])
+        if 'ramos' in doc:
+            for ramo in doc['ramos']:
+                if '_id' in ramo:
+                    ramo['_id'] = str(ramo['_id'])
 
     # Serializar a lista de documentos para JSON
     json_documentos = json.dumps(lista_documentos)
