@@ -7,8 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Verificar se a variável TAGLIST está carregada corretamente
-taglistEnv = os.getenv('TAGLIST')
-taglist = taglistEnv.split(',')
+taglist = os.environ['TAGLIST'].split(',')
 
 client = AsyncOpenAI(
     organization=os.getenv('ORGANIZATION'),
