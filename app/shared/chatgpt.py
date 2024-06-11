@@ -42,19 +42,10 @@ Formato esperado:
 promptClassificarTag = """
 Você receberá um array contendo 20 tags raízes e um texto.
 Retorne o nome da tag raiz que mais se relaciona com o texto.
-A tag gerada deve ser necessariamente uma das 20 tags do array fornecido.
+A tag gerada deve ser necessariamente uma das seguintes tags: [{}].
 Se o texto parecer estranho ou sem sentido, possivelmente devido a um erro de extração, retorne 'Indefinido'.
 
 Formato da resposta esperada: uma única palavra, que é o nome da tag raiz mais relevante.
-
-Exemplo de entrada:
-{{
-"tagsRaizes": {},
-"descricao": "Texto de exemplo para análise"
-}}
-
-Exemplo de saída:
-"Desenvolvimento "
 """.format(taglist)
 
 promptCorrecao = """
