@@ -17,14 +17,14 @@ client = AsyncOpenAI(
 
 promptIntroducao = """
 Resuma o texto em até duas linhas (máximo 210 caracteres).
-Com base no texto, gere três tags de no MÁXIMO 17 caracteres (jamais maior do que isto) e que não seja nenhum desta lista: {}.
+Com base no texto, gere três tags de no MÁXIMO 20 caracteres (jamais maior do que isto) e que não seja nenhum desta lista: {}.
 Gere um título (máximo de 32 caracteres) para o texto.
 A resposta deve ser unicamente no formato JSON com as seguintes propriedades:
 - 'titulo' (título do resumo, máximo de 32 caracteres)
 - 'descricao' (resumo, máximo de 210 caracteres)
-- 'tag1' (primeira tag, máximo de 17 caracteres)
-- 'tag2' (segunda tag, máximo de 17 caracteres)
-- 'tag3' (terceira tag, máximo de 17 caracteres)
+- 'tag1' (primeira tag, máximo de 20 caracteres)
+- 'tag2' (segunda tag, máximo de 20 caracteres)
+- 'tag3' (terceira tag, máximo de 20 caracteres)
 
 Se não houver informações suficientes, classifique todos os campos como 'Indefinido'.
 'titulo' e 'descricao' devem ser traduzidos para pt-BR caso a página seja em outro idioma.
@@ -33,9 +33,9 @@ Formato esperado:
 {{
     "titulo": "Título do resumo (máximo de 32 caracteres)",
     "descricao": "Resumo do texto (máximo de 210 caracteres)",
-    "tag1": "Primeira tag (máximo de 17 caracteres)",
-    "tag2": "Segunda tag (máximo de 17 caracteres)",
-    "tag3": "Terceira tag (máximo de 17 caracteres)"
+    "tag1": "Primeira tag (máximo de 20 caracteres)",
+    "tag2": "Segunda tag (máximo de 20 caracteres)",
+    "tag3": "Terceira tag (máximo de 20 caracteres)"
 }}
 """.format(taglist)
 
@@ -54,17 +54,17 @@ Formato esperado:
 {{
     "titulo": "Título do resumo (máximo de 32 caracteres, jamais deve superar isso)",
     "descricao": "Resumo do texto (máximo de 210 caracteres)",
-    "tag1": "Primeira tag (máximo de 17 caracteres)",
-    "tag2": "Segunda tag (máximo de 17 caracteres)",
-    "tag3": "Terceira tag (máximo de 17 caracteres)"
+    "tag1": "Primeira tag (máximo de 20 caracteres)",
+    "tag2": "Segunda tag (máximo de 20 caracteres)",
+    "tag3": "Terceira tag (máximo de 20 caracteres)"
 }}
 """
 
 async def get_chatgpt_response(messages):
     response = await client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-3.5-turbo-0125",
         messages=messages,
-        temperature=0.1
+        temperature=0.2
     )
     return response
 
@@ -84,13 +84,13 @@ async def validar_resposta(chat, vezes=0):
     if len(result["descricao"]) > 210:
         needs_correction = True
         correction_instructions.append("descricao excedeu 210 caracteres.")
-    if len(result["tag1"]) > 17:
+    if len(result["tag1"]) > 20:
         needs_correction = True
         correction_instructions.append("tag1 excedeu 15 caracteres.")
-    if len(result["tag2"]) > 17:
+    if len(result["tag2"]) > 20:
         needs_correction = True
         correction_instructions.append("tag2 gerada excedeu 15 caracteres.")
-    if len(result["tag3"]) > 17:
+    if len(result["tag3"]) > 20:
         needs_correction = True
         correction_instructions.append("tag3 gerada excedeu 15 caracteres.")
 
@@ -98,7 +98,7 @@ async def validar_resposta(chat, vezes=0):
         correction_message = "\n".join(correction_instructions)
         messages = [
             {"role": "system", "content": promptCorrecao},
-            {"role": "assistant", "content": content},
+            {"role": "assistant", "content": chat},
             {"role": "user", "content": correction_message}
         ]
         response = await get_chatgpt_response(messages)
@@ -106,26 +106,27 @@ async def validar_resposta(chat, vezes=0):
             return await validar_resposta(response , vezes + 1)
         else:
             raise ValueError("Falha ao corrigir a resposta após 3 tentativas.")
-    return result
+    return chat
 
 async def iniciarConversa(htmlText):
     messages = [{"role": "system", "content": promptIntroducao}, {"role": "user", "content": htmlText}]
     response = await get_chatgpt_response(messages)
     result = await validar_resposta(response)
-    return result
+    return result.choices[0].message.content
 
 async def classificarTagsGerais(descricao):
     obj = {
         "tagsRaizes": taglist,
         "descricao": descricao
     }
+
     message = [
         {"role": "system", "content": promptClassificarTag},
         {"role": "user", "content": json.dumps(obj)}
     ]
     response = await get_chatgpt_response(message)
     result = await validar_tag(response)
-    return result
+    return result.choices[0].message.content
 
 async def validar_tag(chat, vezes=0):
     try:
@@ -144,7 +145,7 @@ async def validar_tag(chat, vezes=0):
         correction_message = "\n".join(correction_instructions)
         messages = [
             {"role": "system", "content": promptClassificarTag},
-            {"role": "assistant", "content": value},
+            {"role": "assistant", "content": chat},
             {"role": "user", "content": correction_message}
         ]
         response = await get_chatgpt_response(messages)
@@ -152,6 +153,6 @@ async def validar_tag(chat, vezes=0):
             return await validar_tag(response , vezes + 1)
         else:
             raise ValueError("Falha ao corrigir a resposta após 3 tentativas.")
-    return value
+    return chat
 
 all = ['iniciarConversa', 'classificarTagsGerais']

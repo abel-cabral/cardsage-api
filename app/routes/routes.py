@@ -40,7 +40,7 @@ def create_item():
     
     # EXTRAINDO TAGS, RESUMO E DESCRIÇÃO
     chatHtml = asyncio.run(iniciarConversa(html_texto))
-    chatData = chatHtml
+    chatData = json.loads(chatHtml)
     chatData['url'] = url
     
     tagData = [chatData['tag1'], chatData['tag2'], chatData['tag3']]
