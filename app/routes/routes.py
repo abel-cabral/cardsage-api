@@ -8,7 +8,6 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..shared.util import purificarHTML
 from ..shared.chatgpt import iniciarConversa, classificarTagsGerais
 from ..shared.mongodb import adicionar_ramo, collection, todos_ramos, deletar_ramo_por_id, atualizar_ramo
-from ..shared.selenium_html_extractor import html_extrator
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
 
@@ -25,9 +24,13 @@ def create_item():
     # TRATANDO O REQUISIÇÃO E VALIDANDO
     data = request.get_json()
     url = data.get('url', '')
+    html = data.get('html', '')
     
     if not url:
        return jsonify("Necessário passar um campo 'url' no json"), 422
+   
+    if not html:
+        return jsonify("Necessário passar um campo 'html' no json"), 422
     
     # Verifica se a URL já existe no banco para o usuário logado
     user_id = get_jwt_identity()
@@ -35,11 +38,9 @@ def create_item():
     if documento_existente:
         return jsonify("Já existe uma URL associado a este usuário"), 409
     
-    # Extrai TEXTO HTML da URL
-    html_texto = html_extrator(url)
     
     # EXTRAINDO TAGS, RESUMO E DESCRIÇÃO
-    chatHtml = asyncio.run(iniciarConversa(html_texto))
+    chatHtml = asyncio.run(iniciarConversa(html))
     chatData = json.loads(chatHtml)
     chatData['url'] = url
     
