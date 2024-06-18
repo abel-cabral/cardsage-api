@@ -1,13 +1,21 @@
-import re
+from bs4 import BeautifulSoup
 
 def purificarHTML(html):
-    # Remove múltiplos espaços, novas linhas e tabulações
-    text = re.sub(r'\s+', ' ', html)
-    # Remove espaços no início e no fim do texto
-    text = text.strip()
-    # Remove aspas duplas
-    text = text.replace('"', '')
-    return text
+    # Analisar o HTML com BeautifulSoup
+    soup = BeautifulSoup(html, 'lxml')
+    
+    # Remover todos os elementos <script> e <style>
+    for script_or_style in soup(['script', 'style']):
+        script_or_style.decompose()
+    
+    # Extrair o texto limpo
+    clean_text = soup.get_text(separator=' ')
+    
+    # Remover espaços em branco extras
+    clean_text = ' '.join(clean_text.split())
+    
+    return clean_text
+
 
 def partirHTML(text, max_length=2000):
     segments = []
