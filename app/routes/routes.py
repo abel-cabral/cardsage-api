@@ -38,10 +38,14 @@ def create_item():
     if documento_existente:
         return jsonify("Já existe uma URL associado a este usuário"), 409
     
+    # Extrai TEXTO HTML da URL
+    html_texto = purificarHTML(html)
     
     # EXTRAINDO TAGS, RESUMO E DESCRIÇÃO
-    chatHtml = asyncio.run(iniciarConversa(html))
+    chatHtml = asyncio.run(iniciarConversa(html_texto))
+    
     chatData = json.loads(chatHtml)
+    chatData['imageUrl'] = 'https://images.unsplash.com/photo-1557724630-96de91632c3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w2MTg2MTd8MHwxfHNlYXJjaHwxfHx1bmRlZmluZWR8ZW58MHwwfHx8MTcxNzg2MzEzMnww&ixlib=rb-4.0.3&q=80&w=1080'
     chatData['url'] = url
     
     tagData = [chatData['tag1'], chatData['tag2'], chatData['tag3']]
