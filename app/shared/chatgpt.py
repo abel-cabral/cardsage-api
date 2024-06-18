@@ -98,7 +98,7 @@ async def validar_resposta(chat, vezes=0):
         correction_message = "\n".join(correction_instructions)
         messages = [
             {"role": "system", "content": promptCorrecao},
-            {"role": "assistant", "content": chat},
+            {"role": "assistant", "content": content},
             {"role": "user", "content": correction_message}
         ]
         response = await get_chatgpt_response(messages)
@@ -130,14 +130,14 @@ async def classificarTagsGerais(descricao):
 
 async def validar_tag(chat, vezes=0):
     try:
-        value = chat.choices[0].message.content
+        content = chat.choices[0].message.content
     except (json.JSONDecodeError, KeyError, IndexError) as e:
         raise ValueError("Resposta do OpenIA API não está no formato esperado: {}".format(str(e)))
 
     needs_correction = False
     correction_instructions = []
 
-    if value not in taglist:
+    if content not in taglist:
         needs_correction = True
         correction_instructions.append("A tag_raiz informada não está presente na lista informada {}, tag_raiz deve ser uma tag presente nesta lista".format(taglist))
 
@@ -145,7 +145,7 @@ async def validar_tag(chat, vezes=0):
         correction_message = "\n".join(correction_instructions)
         messages = [
             {"role": "system", "content": promptClassificarTag},
-            {"role": "assistant", "content": chat},
+            {"role": "assistant", "content": content},
             {"role": "user", "content": correction_message}
         ]
         response = await get_chatgpt_response(messages)
