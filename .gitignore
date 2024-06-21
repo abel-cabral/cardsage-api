@@ -1,5 +1,7 @@
 path
 websage
-#.env
 __pycache__/
 .vscode
+
+# Local environment
+.env
