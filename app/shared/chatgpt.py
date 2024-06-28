@@ -16,26 +16,28 @@ client = AsyncOpenAI(
 )
 
 promptIntroducao = """
-Resuma o texto em até duas linhas (máximo 210 caracteres).
-Com base no texto, gere três tags de no MÁXIMO 20 caracteres (jamais maior do que isto) e que não seja nenhum desta lista: {}.
-Gere um título (máximo de 32 caracteres) para o texto.
+Resuma o texto em até duas linhas (máximo 200 caracteres).
+Com base no texto, gere três tags que não seja nenhum desta lista: {}.
+Gere um título (máximo de 31 caracteres) para o texto.
 A resposta deve ser unicamente no formato JSON com as seguintes propriedades:
-- 'titulo' (título do resumo, máximo de 32 caracteres)
-- 'descricao' (resumo, máximo de 210 caracteres)
-- 'tag1' (primeira tag, máximo de 20 caracteres)
-- 'tag2' (segunda tag, máximo de 20 caracteres)
-- 'tag3' (terceira tag, máximo de 20 caracteres)
+- 'titulo' (título do resumo, máximo de 31 caracteres)
+- 'descricao' (resumo, máximo de 200 caracteres)
+- 'tag1'
+- 'tag2'
+- 'tag3'
 
-Se não houver informações suficientes, classifique todos os campos como 'Indefinido'.
+Obs1. A soma dos caracteres das três tags (tag1, tag2 e tag3), não pode ultrapassar o total de 31 caracteres.
+
+Obs2. Se não houver informações suficientes, classifique todos os campos como 'Indefinido'.
 'titulo' e 'descricao' devem ser traduzidos para pt-BR caso a página seja em outro idioma.
 
 Formato esperado:
 {{
-    "titulo": "Título do resumo (máximo de 32 caracteres)",
-    "descricao": "Resumo do texto (máximo de 210 caracteres)",
-    "tag1": "Primeira tag (máximo de 20 caracteres)",
-    "tag2": "Segunda tag (máximo de 20 caracteres)",
-    "tag3": "Terceira tag (máximo de 20 caracteres)"
+    "titulo": "Título do resumo (máximo de 31 caracteres)",
+    "descricao": "Resumo do texto (máximo de 200 caracteres)",
+    "tag1": "Primeira",
+    "tag2": "Segunda",
+    "tag3": "Terceira"
 }}
 """.format(taglist)
 
@@ -52,11 +54,11 @@ promptCorrecao = """
 Por favor, forneça uma nova resposta que atenda aos requisitos.
 Formato esperado:
 {{
-    "titulo": "Título do resumo (máximo de 32 caracteres, jamais deve superar isso)",
-    "descricao": "Resumo do texto (máximo de 210 caracteres)",
-    "tag1": "Primeira tag (máximo de 20 caracteres)",
-    "tag2": "Segunda tag (máximo de 20 caracteres)",
-    "tag3": "Terceira tag (máximo de 20 caracteres)"
+    "titulo": "Título do resumo (máximo de 31 caracteres, jamais deve superar isso)",
+    "descricao": "Resumo do texto (máximo de 200 caracteres)",
+    "tag1": "Primeira",
+    "tag2": "Segunda",
+    "tag3": "Terceira"
 }}
 """
 
@@ -78,21 +80,15 @@ async def validar_resposta(chat, vezes=0):
     needs_correction = False
     correction_instructions = []
 
-    if len(result["titulo"]) > 32:
+    if len(result["titulo"]) > 31:
         needs_correction = True
-        correction_instructions.append("titulo excedeu 12 caracteres.")
-    if len(result["descricao"]) > 210:
+        correction_instructions.append("titulo excedeu 31 caracteres.")
+    if len(result["descricao"]) > 200:
         needs_correction = True
-        correction_instructions.append("descricao excedeu 210 caracteres.")
-    if len(result["tag1"]) > 20:
+        correction_instructions.append("descricao excedeu 200 caracteres.")
+    if len(result["tag1"]) + len(result["tag2"]) + len(result["tag3"]) >= 31:
         needs_correction = True
-        correction_instructions.append("tag1 excedeu 15 caracteres.")
-    if len(result["tag2"]) > 20:
-        needs_correction = True
-        correction_instructions.append("tag2 gerada excedeu 15 caracteres.")
-    if len(result["tag3"]) > 20:
-        needs_correction = True
-        correction_instructions.append("tag3 gerada excedeu 15 caracteres.")
+        correction_instructions.append("A soma das tags 1, 2 e 3 excedeu o total máximo permitido de até 31 caracteres.")
 
     if needs_correction:
         correction_message = "\n".join(correction_instructions)
