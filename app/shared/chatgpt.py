@@ -17,7 +17,7 @@ client = AsyncOpenAI(
 
 promptIntroducao = """
 Resuma o texto em até duas linhas (máximo 200 caracteres).
-Com base no texto, gere três tags que não seja nenhum desta lista: {}.
+Com base no texto, gere três tags que não seja nenhum desta lista: {}, cuja a soma dos caracteres das três tags (tag1, tag2 e tag3), não pode ultrapasse o total de 31 caracteres.
 Gere um título (máximo de 31 caracteres) para o texto.
 A resposta deve ser unicamente no formato JSON com as seguintes propriedades:
 - 'titulo' (título do resumo, máximo de 31 caracteres)
@@ -26,7 +26,7 @@ A resposta deve ser unicamente no formato JSON com as seguintes propriedades:
 - 'tag2'
 - 'tag3'
 
-Obs1. A soma dos caracteres das três tags (tag1, tag2 e tag3), não pode ultrapassar o total de 31 caracteres.
+Obs1. 
 
 Obs2. Se não houver informações suficientes, classifique todos os campos como 'Indefinido'.
 'titulo' e 'descricao' devem ser traduzidos para pt-BR caso a página seja em outro idioma.
@@ -88,7 +88,7 @@ async def validar_resposta(chat, vezes=0):
         correction_instructions.append("descricao excedeu 200 caracteres.")
     if len(result["tag1"]) + len(result["tag2"]) + len(result["tag3"]) >= 31:
         needs_correction = True
-        correction_instructions.append("A soma das tags 1, 2 e 3 excedeu o total máximo permitido de até 31 caracteres.")
+        correction_instructions.append("A soma das tags 1, 2 e 3 excedeu o total máximo permitido de até 31 caracteres. Gere novas tags menores")
 
     if needs_correction:
         correction_message = "\n".join(correction_instructions)
@@ -98,7 +98,7 @@ async def validar_resposta(chat, vezes=0):
             {"role": "user", "content": correction_message}
         ]
         response = await get_chatgpt_response(messages)
-        if vezes < 3:
+        if vezes < 5:
             return await validar_resposta(response , vezes + 1)
         else:
             raise ValueError("Falha ao corrigir a resposta após 3 tentativas.")
