@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..shared.util import purificarHTML
 from ..shared.chatgpt import iniciarConversa, classificarTagsGerais
-from ..shared.mongodb import adicionar_ramo, collection, todos_ramos, deletar_ramo_por_id, atualizar_ramo
+from ..shared.mongodb import adicionar_card, collection, todos_cards, deletar_card_por_id, atualizar_card
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
 
@@ -34,7 +34,7 @@ def create_item():
     
     # Verifica se a URL já existe no banco para o usuário logado
     user_id = get_jwt_identity()
-    documento_existente = collection().find_one({"user_id": user_id, "ramos.url": url})
+    documento_existente = collection().find_one({"user_id": user_id, "cards.url": url})
     if documento_existente:
         return jsonify("Já existe uma URL associado a este usuário"), 409
     
@@ -43,28 +43,30 @@ def create_item():
     
     # EXTRAINDO TAGS, RESUMO E DESCRIÇÃO
     chatHtml = asyncio.run(iniciarConversa(html_texto))
-    
     chatData = json.loads(chatHtml)
-    chatData['imageUrl'] = 'https://images.unsplash.com/photo-1557724630-96de91632c3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w2MTg2MTd8MHwxfHNlYXJjaHwxfHx1bmRlZmluZWR8ZW58MHwwfHx8MTcxNzg2MzEzMnww&ixlib=rb-4.0.3&q=80&w=1080'
-    chatData['url'] = url
-    
-    tagData = [chatData['tag1'], chatData['tag2'], chatData['tag3']]
     tag = asyncio.run(classificarTagsGerais(chatData['descricao']))
     
+    chatData['url'] = url
+    chatData['tag_raiz'] = tag
+    chatData['conteudo'] = html_texto
+    chatData['imageUrl'] = 'https://images.unsplash.com/photo-1557724630-96de91632c3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w2MTg2MTd8MHwxfHNlYXJjaHwxfHx1bmRlZmluZWR8ZW58MHwwfHx8MTcxNzg2MzEzMnww&ixlib=rb-4.0.3&q=80&w=1080'
+    
     # SALVANDO NO BANCO DE DADOS
-    mongo_response = adicionar_ramo(tag, chatData)
+    mongo_response = adicionar_card(chatData)
     
-    if 'message' in mongo_response:
-        return mongo_response['message'], 415
+    # Verificar se a atualização foi bem-sucedida
+    if mongo_response['operacaoMongo'] == 0:
+        return jsonify("Erro ao salvar dados no banco."), 415
     
-    # Atualiza o cache após a inclusão de um novo ramo
+    # Atualiza o cache após a inclusão de um novo card
     update_cache()
     
     # TRATANDO O RETORNO
-    response = mongo_response['ramos'][-1]
-    response['tag_raiz'] = mongo_response['tag_raiz']
+    del mongo_response['operacaoMongo']
+    del mongo_response['conteudo']
+    del mongo_response['palavras_chaves']
     
-    return jsonify(response), 201
+    return jsonify(mongo_response), 201
 
 @main.route('/api/list-items', methods=['GET'])
 @jwt_required()
@@ -75,33 +77,33 @@ def get_items():
     if cached_data:
         return json.loads(cached_data), 200
     else:
-        items = todos_ramos()
+        items = todos_cards()
         r.set(cache_key, items)
         return jsonify(json.loads(items)), 200
 
-@main.route('/api/atualizar-item', methods=['PUT'])
+@main.route('/api/update-item', methods=['PUT'])
 @jwt_required()
 def update_item():
     # Tratando a requisição e validando
     data = request.get_json()
     imageUrl = data.get('imageUrl', '')
-    ramo_id = data.get('ramo_id', '')
+    card_id = data.get('card_id', '')
 
     if not imageUrl:
         return jsonify("Necessário passar um campo 'imageUrl' no json"), 422
 
-    if not ramo_id:
-        return jsonify("Necessário passar um campo 'ramo_id' no json"), 422
-
-    # Busca pela tag no banco que esteja relacionada ao usuario logado e com id do ramo valido
+    if not card_id:
+        return jsonify("Necessário passar um campo 'card_id' no json"), 422
+    
+    # Busca pela tag no banco que esteja relacionada ao usuario logado e com id do card valido
     user_id = get_jwt_identity()
-    documento_existente = collection().find_one({"user_id": user_id, "ramos._id": ramo_id})
+    documento_existente = collection().find_one({"user_id": user_id, "cards._id": card_id})
 
     if not documento_existente:
         return jsonify("Item não encontrado no banco de dados ou usuário não autorizado"), 404
 
-    # Atualizando o campo imageUrl no ramo específico
-    resultado = atualizar_ramo(ramo_id, imageUrl, user_id)
+    # Atualizando o campo imageUrl no card específico
+    resultado = atualizar_card(card_id, imageUrl, user_id)
 
     # Verificar se a atualização foi bem-sucedida
     if resultado.modified_count == 0:
@@ -112,17 +114,17 @@ def update_item():
 
     return '', 204
 
-@main.route('/api/delete-item/<string:ramo_id>', methods=['DELETE'])
+@main.route('/api/delete-item/<string:card_id>', methods=['DELETE'])
 @jwt_required()
-def delete_item(ramo_id):
+def delete_item(card_id):
     # Busca pelo id no banco que esteja relacionada ao usuario logado
     user_id = get_jwt_identity()
-    documento_existente = collection().find_one({"user_id": user_id, "ramos._id": ramo_id})
+    documento_existente = collection().find_one({"user_id": user_id, "cards._id": card_id})
 
     if not documento_existente:
         return jsonify("Item não encontrado no banco de dados ou usuário não autorizado"), 404
     
-    response = deletar_ramo_por_id(ramo_id)
+    response = deletar_card_por_id(user_id, card_id)
     
     # Invalida o cache para a rota de listagem de itens
     r.delete(get_jwt_identity())
@@ -144,5 +146,5 @@ def redis_keys():
 def update_cache():
     # Atualiza o cache para a lista de itens
     cache_key = get_jwt_identity()
-    items = todos_ramos()
+    items = todos_cards()
     r.set(cache_key, items)
