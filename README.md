@@ -4,7 +4,7 @@ WebSage API é uma API desenvolvida em Python com Flask. Sua principal função 
 
 A WebSage API conecta-se a diversos serviços para realizar suas operações. Utiliza um banco de dados não-relacional MongoDB para armazenamento e se comunica com a API da OpenAI para realizar análises detalhadas e processamento de requisições. Além disso, oferece serviços de extração de texto a partir de páginas web fornecidas via URL.
 
-A ideia central é que, ao submeter uma URL, a API extrai o texto da página, gera um resumo em duas linhas (com no máximo 240 caracteres), cria um título, uma descrição e três tags associadas ao conteúdo da página. Estas tags são então organizadas em uma estrutura hierárquica com tags raízes predefinidas e tags ramos geradas pela interação com o ChatGPT da OpenAI, formando uma árvore binária de dois níveis.
+A ideia central é que, ao submeter uma URL, a API extrai o texto da página, gera um resumo em duas linhas (com no máximo 240 caracteres), cria um título, uma descrição e três tags associadas ao conteúdo da página. Estas tags são então organizadas em uma estrutura hierárquica com tags raízes predefinidas e tags cards geradas pela interação com o ChatGPT da OpenAI, formando uma árvore binária de dois níveis.
 
 ## Sumário
 

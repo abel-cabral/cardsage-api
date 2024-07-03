@@ -18,10 +18,11 @@ client = AsyncOpenAI(
 promptIntroducao = """
 Resuma o texto em até duas linhas (máximo 200 caracteres).
 Com base no texto, gere três tags que não seja nenhum desta lista: {}, cuja a soma dos caracteres das três tags (tag1, tag2 e tag3), não pode ultrapasse o total de 31 caracteres.
-Gere um título (máximo de 31 caracteres) para o texto.
+Gere um título (máximo de 31 caracteres) para o texto. Uma propriedade chamada de 'palavras_chaves' ela deve ser uma lista com todas as palavras chaves encontradas.
 A resposta deve ser unicamente no formato JSON com as seguintes propriedades:
 - 'titulo' (título do resumo, máximo de 31 caracteres)
 - 'descricao' (resumo, máximo de 200 caracteres)
+- 'palavras_chaves': []
 - 'tag1'
 - 'tag2'
 - 'tag3'
@@ -37,7 +38,9 @@ Formato esperado:
     "descricao": "Resumo do texto (máximo de 200 caracteres)",
     "tag1": "Primeira",
     "tag2": "Segunda",
-    "tag3": "Terceira"
+    "tag3": "Terceira",
+    "palavras_chaves": ["x", "y", "z"]
+    
 }}
 """.format(taglist)
 
@@ -45,6 +48,7 @@ promptClassificarTag = """
 Você receberá um array contendo 20 tags raízes e um texto.
 Retorne o nome da tag raiz que mais se relaciona com o texto.
 A tag gerada deve ser necessariamente uma das seguintes tags: [{}].
+palavras_chaves deve ter todas as palavras chaves relacionadas com o texto.
 Se o texto parecer estranho ou sem sentido, possivelmente devido a um erro de extração, retorne 'Indefinido'.
 
 Formato da resposta esperada: uma única palavra, que é o nome da tag raiz mais relevante.
@@ -58,7 +62,8 @@ Formato esperado:
     "descricao": "Resumo do texto (máximo de 200 caracteres)",
     "tag1": "Primeira",
     "tag2": "Segunda",
-    "tag3": "Terceira"
+    "tag3": "Terceira",
+    "palavras_chaves": ["x", "y", "z"]
 }}
 """
 
@@ -86,6 +91,9 @@ async def validar_resposta(chat, vezes=0):
     if len(result["descricao"]) > 200:
         needs_correction = True
         correction_instructions.append("descricao excedeu 200 caracteres.")
+    if len(result["palavras_chaves"]) <= 0:
+        needs_correction = True
+        correction_instructions.append("Nenhuma palavra chave encontrada.")
     if len(result["tag1"]) + len(result["tag2"]) + len(result["tag3"]) >= 31:
         needs_correction = True
         correction_instructions.append("A soma das tags 1, 2 e 3 excedeu o total máximo permitido de até 31 caracteres. Gere novas tags menores")
