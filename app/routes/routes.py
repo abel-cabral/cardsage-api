@@ -10,6 +10,7 @@ from ..shared.chatgpt import iniciarConversa, classificarTagsGerais
 from ..shared.mongodb import adicionar_card, collection, todos_cards, deletar_card_por_id, atualizar_card
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
+from ..shared.mongodb_search import search_query, search_tags
 
 load_dotenv()
 
@@ -80,6 +81,20 @@ def get_items():
         items = todos_cards()
         r.set(cache_key, items)
         return jsonify(json.loads(items)), 200
+
+@main.route('/api/search-items/<string:query>', methods=['GET'])
+@jwt_required()
+def search_items(query):
+    items = search_query(query)
+    return items, 200
+
+@main.route('/api/search-tags-items', methods=['GET'])
+@jwt_required()
+def search_tags_items():
+     # Exemplo de pesquisa por tags
+    tags_pesquisa = ['JavaScript']
+    items = search_tags(tags_pesquisa)
+    return items, 200
 
 @main.route('/api/update-item', methods=['PUT'])
 @jwt_required()
