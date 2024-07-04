@@ -22,14 +22,12 @@ Gere um título (máximo de 31 caracteres) para o texto. Uma propriedade chamada
 A resposta deve ser unicamente no formato JSON com as seguintes propriedades:
 - 'titulo' (título do resumo, máximo de 31 caracteres)
 - 'descricao' (resumo, máximo de 200 caracteres)
-- 'palavras_chaves': []
+- 'palavras_chaves': ["x", "y", "z"]
 - 'tag1'
 - 'tag2'
 - 'tag3'
 
-Obs1. 
-
-Obs2. Se não houver informações suficientes, classifique todos os campos como 'Indefinido'.
+Obs. Se não houver informações suficientes, classifique todos os campos como 'Indefinido'.
 'titulo' e 'descricao' devem ser traduzidos para pt-BR caso a página seja em outro idioma.
 
 Formato esperado:
@@ -71,7 +69,7 @@ async def get_chatgpt_response(messages):
     response = await client.chat.completions.create(
         model="gpt-3.5-turbo-0125",
         messages=messages,
-        temperature=0.2
+        temperature=0.3
     )
     return response
 
@@ -91,9 +89,6 @@ async def validar_resposta(chat, vezes=0):
     if len(result["descricao"]) > 200:
         needs_correction = True
         correction_instructions.append("descricao excedeu 200 caracteres.")
-    if len(result["palavras_chaves"]) <= 0:
-        needs_correction = True
-        correction_instructions.append("Nenhuma palavra chave encontrada.")
     if len(result["tag1"]) + len(result["tag2"]) + len(result["tag3"]) >= 31:
         needs_correction = True
         correction_instructions.append("A soma das tags 1, 2 e 3 excedeu o total máximo permitido de até 31 caracteres. Gere novas tags menores")
@@ -109,7 +104,7 @@ async def validar_resposta(chat, vezes=0):
         if vezes < 5:
             return await validar_resposta(response , vezes + 1)
         else:
-            raise ValueError("Falha ao corrigir a resposta após 3 tentativas.")
+            raise ValueError("Falha ao corrigir a resposta após 5 tentativas.")
     return chat
 
 async def iniciarConversa(htmlText):
