@@ -1,8 +1,8 @@
-# WebSage API
+# CardSage API
 
-WebSage API é uma API desenvolvida em Python com Flask. Sua principal função é servir como backend para uma extensão do Chrome chamada WebSage Extension, mas também pode ser utilizada em outras plataformas, como aplicações móveis e desktop, graças à sua flexibilidade.
+CardSage API é uma API desenvolvida em Python com Flask. Sua principal função é servir como backend para uma extensão do Chrome chamada CardSage, mas também pode ser utilizada em outras plataformas, como aplicações móveis e desktop, graças à sua flexibilidade.
 
-A WebSage API conecta-se a diversos serviços para realizar suas operações. Utiliza um banco de dados não-relacional MongoDB para armazenamento e se comunica com a API da OpenAI para realizar análises detalhadas e processamento de requisições. Além disso, oferece serviços de extração de texto a partir de páginas web fornecidas via URL.
+A CardSage API conecta-se a diversos serviços para realizar suas operações. Utiliza um banco de dados não-relacional MongoDB para armazenamento e se comunica com a API da OpenAI para realizar análises detalhadas e processamento de requisições. Além disso, oferece serviços de extração de texto a partir de páginas web fornecidas via URL.
 
 A ideia central é que, ao submeter uma URL, a API extrai o texto da página, gera um resumo em duas linhas (com no máximo 240 caracteres), cria um título, uma descrição e três tags associadas ao conteúdo da página. Estas tags são então organizadas em uma estrutura hierárquica com tags raízes predefinidas e tags cards geradas pela interação com o ChatGPT da OpenAI, formando uma árvore binária de dois níveis.
 
@@ -27,16 +27,16 @@ A ideia central é que, ao submeter uma URL, a API extrai o texto da página, ge
 1. Clone o repositório:
 
 ```bash
-     git clone https://github.com/seu-usuario/websage-api.git
-     cd websage-api
+     git clone https://github.com/seu-usuario/cardsage-api.git
+     cd cardsage-api
 ```
 
 2. Crie um ambiente virtual:
 
 ```bash
-    python3 -m venv websage
-    source websage/bin/activate  # Linux/Mac
-    websage\Scripts\activate  # Windows
+    python3 -m venv cardsage
+    source cardsage/bin/activate  # Linux/Mac
+    cardsage\Scripts\activate  # Windows
 ```
 3. Instale as dependências:
 
@@ -64,7 +64,7 @@ A ideia central é que, ao submeter uma URL, a API extrai o texto da página, ge
 
 ## Uso
 
-Esta API é projetada para ser utilizada por uma extensão de navegador chamada WebSage Extension. Ela oferece três rotas principais para salvar, listar e excluir itens no banco de dados.
+Esta API é projetada para ser utilizada por uma extensão de navegador chamada CardSage Extension. Ela oferece três rotas principais para salvar, listar e excluir itens no banco de dados.
 
 ### Rotas da API
 

@@ -67,7 +67,7 @@ def create_item():
     del mongo_response['conteudo']
     del mongo_response['palavras_chaves']
     
-    return jsonify(mongo_response), 201
+    return html_texto, 201
 
 @main.route('/api/list-items', methods=['GET'])
 @jwt_required()

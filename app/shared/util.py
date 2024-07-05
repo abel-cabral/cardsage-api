@@ -1,20 +1,29 @@
+import html2text
+import re
+
 from bs4 import BeautifulSoup
 
 def purificarHTML(html):
-    # Analisar o HTML com BeautifulSoup
-    soup = BeautifulSoup(html, 'lxml')
+    # Parseia o HTML com BeautifulSoup
+    soup = BeautifulSoup(html, 'html.parser')
     
-    # Remover todos os elementos <script> e <style>
-    for script_or_style in soup(['script', 'style']):
-        script_or_style.decompose()
-    
-    # Extrair o texto limpo
-    clean_text = soup.get_text(separator=' ')
-    
-    # Remover espaços em branco extras
-    clean_text = ' '.join(clean_text.split())
-    
-    return clean_text
+    # Remove elementos indesejados como scripts, estilos, links, etc.
+    for script in soup(['script', 'style', 'a', 'link', 'head', 'title', 'meta']):
+        script.extract()
+
+    # Obtém o texto limpo usando html2text
+    h = html2text.HTML2Text()
+    h.ignore_links = True  # Ignora links
+    h.ignore_images = True  # Ignora imagens
+    h.ignore_emphasis = True  # Ignora ênfase (como negrito e itálico)
+
+    # Extrai o texto legível
+    texto_extraido = h.handle(soup.get_text())
+
+    # Remove caracteres indesejados e espaços extras
+    texto_limpo = ' '.join(texto_extraido.split())
+
+    return texto_limpo
 
 
 def partirHTML(text, max_length=2000):
