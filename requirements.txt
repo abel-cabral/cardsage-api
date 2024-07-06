@@ -78,6 +78,7 @@ pyee==11.1.0
 Pygments==2.18.0
 PyJWT==2.8.0
 pymongo==4.7.2
+html2text==2024.2.26
 pyppeteer==2.0.0
 pyproject_hooks==1.1.0
 PySocks==1.7.1
