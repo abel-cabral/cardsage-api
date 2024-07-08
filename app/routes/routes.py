@@ -67,7 +67,7 @@ def create_item():
     del mongo_response['conteudo']
     del mongo_response['palavras_chaves']
     
-    return html_texto, 201
+    return jsonify(mongo_response), 201
 
 @main.route('/api/list-items', methods=['GET'])
 @jwt_required()
@@ -76,11 +76,11 @@ def get_items():
     cache_key = get_jwt_identity()
     cached_data = r.get(cache_key)
     if cached_data:
-        return json.loads(cached_data), 200
+        return json.loads(cached_data)[0], 200
     else:
         items = todos_cards()
         r.set(cache_key, items)
-        return jsonify(json.loads(items)), 200
+        return jsonify(json.loads(items)[0]), 200
 
 @main.route('/api/search-items/<string:query>', methods=['GET'])
 @jwt_required()
