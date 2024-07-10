@@ -11,10 +11,11 @@ auth_bp = Blueprint('auth', __name__)
 def register():
     data = request.get_json()
     email = data.get('email')
+    fullname = data.get('fullname')
     password = data.get('password')
 
-    if not email or not password:
-        return jsonify({"msg": "Email and password required"}), 400
+    if not email or not password or not fullname:
+        return jsonify({"msg": "fullname, email and password fields are required"}), 400
 
     mongodb = collection('users')
     user = mongodb.find_one({"email": email})
@@ -22,7 +23,7 @@ def register():
         return jsonify({"msg": "User already exists"}), 400
 
     hashed_password = generate_password_hash(password)
-    mongodb.insert_one({"email": email, "password": hashed_password})
+    mongodb.insert_one({"fullname": fullname, "email": email, "password": hashed_password,})
     
     return jsonify({"msg": "User registered successfully"}), 201
 
@@ -43,7 +44,7 @@ def login():
     # Debugging: Verifique se o usuário e a senha estão corretos
     if check_password_hash(user['password'], password):
         access_token = create_access_token(identity=str(user['_id']))
-        return jsonify(access_token=access_token), 200
+        return jsonify({"fullname": user['fullname'], "access_token": access_token}), 200
     else:
         return jsonify({"msg": "Invalid credentials"}), 401
 
