@@ -76,7 +76,7 @@ def get_items():
     cache_key = get_jwt_identity()
     cached_data = r.get(cache_key)
     if cached_data:
-        return json.loads(cached_data)[0], 200
+        return jsonify(json.loads(cached_data)[0]), 200
     else:
         items = todos_cards()
         r.set(cache_key, items)
