@@ -44,7 +44,8 @@ def login():
     # Debugging: Verifique se o usuário e a senha estão corretos
     if check_password_hash(user['password'], password):
         access_token = create_access_token(identity=str(user['_id']))
-        return jsonify({"fullname": user['fullname'], "access_token": access_token}), 200
+        fullname = user.get('fullname', '')
+        return jsonify({"fullname": fullname, "access_token": access_token}), 200
     else:
         return jsonify({"msg": "Invalid credentials"}), 401
 
