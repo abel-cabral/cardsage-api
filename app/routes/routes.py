@@ -75,12 +75,23 @@ def get_items():
     # Use uma chave única para representar os dados que deseja armazenar em cache
     cache_key = get_jwt_identity()
     cached_data = r.get(cache_key)
+
     if cached_data:
-        return jsonify(json.loads(cached_data)[0]), 200
+        # Decodifica os dados de bytes para string antes de carregá-los como JSON
+        data = json.loads(cached_data.decode('utf-8'))
+        return jsonify(data), 200
     else:
         items = todos_cards()
-        r.set(cache_key, items)
-        return jsonify(json.loads(items)[0]), 200
+        # Certifique-se de converter 'items' para uma string JSON antes de armazenar no cache
+        items_json = json.dumps(items)
+        r.set(cache_key, items_json)
+
+        # Carregar os itens recém-adicionados para construir a resposta
+        data = json.loads(items_json)
+
+        if data:
+            return jsonify(data), 200
+        return '', 200
 
 @main.route('/api/search-items/<string:query>', methods=['GET'])
 @jwt_required()
