@@ -1,6 +1,5 @@
 import os
 import json
-
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
@@ -16,58 +15,72 @@ client = AsyncOpenAI(
 )
 
 promptIntroducao = """
-Resuma o texto em até duas linhas (máximo 200 caracteres).
-Com base no texto, gere três tags que não seja nenhum desta lista: {}, cuja a soma dos caracteres das três tags (tag1, tag2 e tag3), não pode ultrapasse o total de 31 caracteres.
-Gere um título (máximo de 31 caracteres) para o texto. Uma propriedade chamada de 'palavras_chaves' ela deve ser uma lista com todas as palavras chaves encontradas.
-A resposta deve ser unicamente no formato JSON com as seguintes propriedades:
-- 'titulo' (título do resumo, máximo de 31 caracteres)
-- 'descricao' (resumo, máximo de 200 caracteres)
-- 'palavras_chaves': ["x", "y", "z"]
-- 'tag1'
-- 'tag2'
-- 'tag3'
+Você receberá um texto. Sua tarefa é:
 
-Obs. Se não houver informações suficientes, classifique todos os campos como 'Indefinido'.
-'titulo' e 'descricao' devem ser traduzidos para pt-BR caso a página seja em outro idioma.
+1. Resumir o texto em até duas linhas (máximo de 200 caracteres).
+2. Gerar três tags que não sejam nenhuma desta lista: {0}.
+   - A soma dos caracteres das três tags (tag1, tag2, tag3) não pode ultrapassar 31 caracteres.
+3. Gerar um título para o texto (máximo de 31 caracteres).
+4. Listar todas as palavras-chave encontradas no texto.
+
+A resposta deve ser unicamente no formato JSON com as seguintes propriedades:
+- 'titulo': Título do resumo (máximo de 31 caracteres)
+- 'descricao': Resumo do texto (máximo de 200 caracteres)
+- 'palavras_chaves': Lista de palavras-chave
+- 'tag1': Primeira tag
+- 'tag2': Segunda tag
+- 'tag3': Terceira tag
+
+Obs: Se não houver informações suficientes, classifique todos os campos como 'Indefinido'.
+Se o texto estiver em outro idioma, traduza 'titulo' e 'descricao' para pt-BR.
 
 Formato esperado:
 {{
     "titulo": "Título do resumo (máximo de 31 caracteres)",
     "descricao": "Resumo do texto (máximo de 200 caracteres)",
-    "tag1": "Primeira",
-    "tag2": "Segunda",
-    "tag3": "Terceira",
+    "tag1": "Primeira tag",
+    "tag2": "Segunda tag",
+    "tag3": "Terceira tag",
     "palavras_chaves": ["x", "y", "z"]
-    
 }}
 """.format(taglist)
 
 promptClassificarTag = """
 Você receberá um array contendo 20 tags raízes e um texto.
-Retorne o nome da tag raiz que mais se relaciona com o texto.
-A tag gerada deve ser necessariamente uma das seguintes tags: [{}].
-palavras_chaves deve ter todas as palavras chaves relacionadas com o texto.
+Sua tarefa é:
+
+1. Retornar o nome da tag raiz que mais se relaciona com o texto.
+2. Listar todas as palavras-chave encontradas no texto.
+
+A tag gerada deve ser necessariamente uma das seguintes tags: {0}.
 Se o texto parecer estranho ou sem sentido, possivelmente devido a um erro de extração, retorne 'Indefinido'.
 
-Formato da resposta esperada: uma única palavra, que é o nome da tag raiz mais relevante.
+Formato esperado:
+Uma única palavra, que é o nome da tag raiz mais relevante.
 """.format(taglist)
 
 promptCorrecao = """
-Por favor, forneça uma nova resposta que atenda aos requisitos.
+Sua resposta anterior não atendeu aos requisitos. Por favor, forneça uma nova resposta que atenda aos seguintes requisitos:
+
+1. 'titulo': Título do resumo (máximo de 31 caracteres, jamais deve superar isso).
+2. 'descricao': Resumo do texto (máximo de 200 caracteres).
+3. 'tag1', 'tag2', 'tag3': A soma dos caracteres das três tags não pode ultrapassar 31 caracteres.
+4. 'palavras_chaves': Lista de palavras-chave.
+
 Formato esperado:
 {{
-    "titulo": "Título do resumo (máximo de 31 caracteres, jamais deve superar isso)",
+    "titulo": "Título do resumo (máximo de 31 caracteres)",
     "descricao": "Resumo do texto (máximo de 200 caracteres)",
-    "tag1": "Primeira",
-    "tag2": "Segunda",
-    "tag3": "Terceira",
+    "tag1": "Primeira tag",
+    "tag2": "Segunda tag",
+    "tag3": "Terceira tag",
     "palavras_chaves": ["x", "y", "z"]
 }}
 """
 
 async def get_chatgpt_response(messages):
     response = await client.chat.completions.create(
-        model="gpt-3.5-turbo-0125",
+        model="gpt-4o-mini",
         messages=messages,
         temperature=0.3
     )
@@ -78,20 +91,20 @@ async def validar_resposta(chat, vezes=0):
         content = chat.choices[0].message.content
         result = json.loads(content)
     except (json.JSONDecodeError, KeyError, IndexError) as e:
-        raise ValueError("Resposta do OpenIA API não está no formato esperado: {}".format(str(e)))
+        raise ValueError("Resposta do OpenAI API não está no formato esperado: {}".format(str(e)))
 
     needs_correction = False
     correction_instructions = []
 
     if len(result["titulo"]) > 31:
         needs_correction = True
-        correction_instructions.append("titulo excedeu 31 caracteres.")
+        correction_instructions.append("O campo 'titulo' excedeu 31 caracteres.")
     if len(result["descricao"]) > 200:
         needs_correction = True
-        correction_instructions.append("descricao excedeu 200 caracteres.")
-    if len(result["tag1"]) + len(result["tag2"]) + len(result["tag3"]) >= 31:
+        correction_instructions.append("O campo 'descricao' excedeu 200 caracteres.")
+    if len(result["tag1"]) + len(result["tag2"]) + len(result["tag3"]) > 31:
         needs_correction = True
-        correction_instructions.append("A soma das tags 1, 2 e 3 excedeu o total máximo permitido de até 31 caracteres. Gere novas tags menores")
+        correction_instructions.append("A soma das tags 'tag1', 'tag2' e 'tag3' excedeu o total máximo permitido de 31 caracteres. Gere novas tags menores.")
 
     if needs_correction:
         correction_message = "\n".join(correction_instructions)
@@ -102,7 +115,7 @@ async def validar_resposta(chat, vezes=0):
         ]
         response = await get_chatgpt_response(messages)
         if vezes < 5:
-            return await validar_resposta(response , vezes + 1)
+            return await validar_resposta(response, vezes + 1)
         else:
             raise ValueError("Falha ao corrigir a resposta após 5 tentativas.")
     return chat
@@ -131,14 +144,14 @@ async def validar_tag(chat, vezes=0):
     try:
         content = chat.choices[0].message.content
     except (json.JSONDecodeError, KeyError, IndexError) as e:
-        raise ValueError("Resposta do OpenIA API não está no formato esperado: {}".format(str(e)))
+        raise ValueError("Resposta do OpenAI API não está no formato esperado: {}".format(str(e)))
 
     needs_correction = False
     correction_instructions = []
 
     if content not in taglist:
         needs_correction = True
-        correction_instructions.append("A tag_raiz informada não está presente na lista informada {}, tag_raiz deve ser uma tag presente nesta lista".format(taglist))
+        correction_instructions.append("A tag_raiz informada não está presente na lista informada {}. A tag_raiz deve ser uma tag presente nesta lista.".format(taglist))
 
     if needs_correction:
         correction_message = "\n".join(correction_instructions)
@@ -149,7 +162,7 @@ async def validar_tag(chat, vezes=0):
         ]
         response = await get_chatgpt_response(messages)
         if vezes < 3:
-            return await validar_tag(response , vezes + 1)
+            return await validar_tag(response, vezes + 1)
         else:
             raise ValueError("Falha ao corrigir a resposta após 3 tentativas.")
     return chat
