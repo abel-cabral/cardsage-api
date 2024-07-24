@@ -152,9 +152,9 @@ def delete_item(card_id):
     
     response = deletar_card_por_id(user_id, card_id)
     
-    # Invalida o cache para a rota de listagem de itens
-    r.delete(get_jwt_identity())
-    return jsonify(response), 204
+    # Atualiza o cache para a rota de listagem de itens
+    update_cache()
+    return response, 200
 
 @main.route('/api/redis-keys', methods=['GET'])
 def redis_keys():
