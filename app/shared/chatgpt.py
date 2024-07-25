@@ -91,6 +91,8 @@ async def validar_resposta(chat, vezes=0):
         content = chat.choices[0].message.content
         result = json.loads(content)
     except (json.JSONDecodeError, KeyError, IndexError) as e:
+        if vezes < 3:
+            return await validar_resposta(response, vezes + 1)
         raise ValueError("Resposta do OpenAI API não está no formato esperado: {}".format(str(e)))
 
     needs_correction = False
@@ -98,13 +100,13 @@ async def validar_resposta(chat, vezes=0):
 
     if len(result["titulo"]) > 31:
         needs_correction = True
-        correction_instructions.append("O campo 'titulo' excedeu 31 caracteres.")
+        correction_instructions.append("Não esta certo, tente de outra forma! O campo 'titulo' excedeu 31 caracteres.")
     if len(result["descricao"]) > 200:
         needs_correction = True
-        correction_instructions.append("O campo 'descricao' excedeu 200 caracteres.")
+        correction_instructions.append("Não esta certo, tente de outra forma! O campo 'descricao' excedeu 200 caracteres.")
     if len(result["tag1"]) + len(result["tag2"]) + len(result["tag3"]) > 31:
         needs_correction = True
-        correction_instructions.append("A soma das tags 'tag1', 'tag2' e 'tag3' excedeu o total máximo permitido de 31 caracteres. Gere novas tags menores.")
+        correction_instructions.append("Não esta certo, tente de outra forma! A soma das tags 'tag1', 'tag2' e 'tag3' excedeu o total máximo permitido de 31 caracteres. Gere novas tags menores.")
 
     if needs_correction:
         correction_message = "\n".join(correction_instructions)
@@ -116,8 +118,6 @@ async def validar_resposta(chat, vezes=0):
         response = await get_chatgpt_response(messages)
         if vezes < 5:
             return await validar_resposta(response, vezes + 1)
-        else:
-            raise ValueError("Falha ao corrigir a resposta após 5 tentativas.")
     return chat
 
 async def iniciarConversa(htmlText):
@@ -151,7 +151,7 @@ async def validar_tag(chat, vezes=0):
 
     if content not in taglist:
         needs_correction = True
-        correction_instructions.append("A tag_raiz informada não está presente na lista informada {}. A tag_raiz deve ser uma tag presente nesta lista.".format(taglist))
+        correction_instructions.append("Não esta certo, tente de outra forma! A tag_raiz informada não está presente na lista informada {}. A tag_raiz deve ser uma tag presente nesta lista.".format(taglist))
 
     if needs_correction:
         correction_message = "\n".join(correction_instructions)
@@ -161,10 +161,8 @@ async def validar_tag(chat, vezes=0):
             {"role": "user", "content": correction_message}
         ]
         response = await get_chatgpt_response(messages)
-        if vezes < 3:
+        if vezes < 5:
             return await validar_tag(response, vezes + 1)
-        else:
-            raise ValueError("Falha ao corrigir a resposta após 3 tentativas.")
     return chat
 
 all = ['iniciarConversa', 'classificarTagsGerais']
