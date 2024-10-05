@@ -45,6 +45,20 @@ Formato esperado:
 }}
 """.format(taglist)
 
+promptClassificarTag = """
+Você receberá um array contendo 20 tags raízes e um texto.
+Sua tarefa é:
+
+1. Retornar o nome da tag raiz que mais se relaciona com o texto.
+2. Listar todas as palavras-chave encontradas no texto.
+
+A tag gerada deve ser necessariamente uma das seguintes tags: {0}.
+Se o texto parecer estranho ou sem sentido, possivelmente devido a um erro de extração, retorne 'Indefinido'.
+
+Formato esperado:
+Uma única palavra, que é o nome da tag raiz mais relevante.
+""".format(taglist)
+
 promptCorrecao = """
 Sua resposta anterior não atendeu aos requisitos. Por favor, forneça uma nova resposta que atenda aos seguintes requisitos:
 
