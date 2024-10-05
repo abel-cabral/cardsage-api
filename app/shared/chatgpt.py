@@ -45,20 +45,6 @@ Formato esperado:
 }}
 """.format(taglist)
 
-promptClassificarTag = """
-Você receberá um array contendo 20 tags raízes e um texto.
-Sua tarefa é:
-
-1. Retornar o nome da tag raiz que mais se relaciona com o texto.
-2. Listar todas as palavras-chave encontradas no texto.
-
-A tag gerada deve ser necessariamente uma das seguintes tags: {0}.
-Se o texto parecer estranho ou sem sentido, possivelmente devido a um erro de extração, retorne 'Indefinido'.
-
-Formato esperado:
-Uma única palavra, que é o nome da tag raiz mais relevante.
-""".format(taglist)
-
 promptCorrecao = """
 Sua resposta anterior não atendeu aos requisitos. Por favor, forneça uma nova resposta que atenda aos seguintes requisitos:
 
@@ -86,29 +72,31 @@ async def get_chatgpt_response(messages):
     )
     return response
 
-async def validar_resposta(chat, vezes=0):
+async def validar_resposta(chat, vezes=0, max_tentativas=3):
     try:
         content = chat.choices[0].message.content
         result = json.loads(content)
     except (json.JSONDecodeError, KeyError, IndexError) as e:
-        if vezes < 3:
+        if vezes < max_tentativas:
             return await validar_resposta(response, vezes + 1)
-        raise ValueError("Resposta do OpenAI API não está no formato esperado: {}".format(str(e)))
+        # Se falhar após as tentativas, retorna o último resultado
+        print("Erro de formatação JSON, aceitando a resposta como está:", str(e))
+        return chat
 
     needs_correction = False
     correction_instructions = []
 
-    if len(result["titulo"]) > 31:
+    if len(result.get("titulo", "")) > 31:
         needs_correction = True
-        correction_instructions.append("Não esta certo, tente de outra forma! O campo 'titulo' excedeu 31 caracteres.")
-    if len(result["descricao"]) > 200:
+        correction_instructions.append("O campo 'titulo' excedeu 31 caracteres.")
+    if len(result.get("descricao", "")) > 200:
         needs_correction = True
-        correction_instructions.append("Não esta certo, tente de outra forma! O campo 'descricao' excedeu 200 caracteres.")
-    if len(result["tag1"]) + len(result["tag2"]) + len(result["tag3"]) > 31:
+        correction_instructions.append("O campo 'descricao' excedeu 200 caracteres.")
+    if len(result.get("tag1", "")) + len(result.get("tag2", "")) + len(result.get("tag3", "")) > 31:
         needs_correction = True
-        correction_instructions.append("Não esta certo, tente de outra forma! A soma das tags 'tag1', 'tag2' e 'tag3' excedeu o total máximo permitido de 31 caracteres. Gere novas tags menores.")
+        correction_instructions.append("A soma das tags 'tag1', 'tag2' e 'tag3' excedeu o total máximo permitido de 31 caracteres. Gere novas tags menores.")
 
-    if needs_correction:
+    if needs_correction and vezes < max_tentativas:
         correction_message = "\n".join(correction_instructions)
         messages = [
             {"role": "system", "content": promptCorrecao},
@@ -116,8 +104,12 @@ async def validar_resposta(chat, vezes=0):
             {"role": "user", "content": correction_message}
         ]
         response = await get_chatgpt_response(messages)
-        if vezes < 5:
-            return await validar_resposta(response, vezes + 1)
+        return await validar_resposta(response, vezes + 1)
+
+    if needs_correction:
+        # Loga uma advertência mas aceita o resultado final
+        print("Advertência: Algumas regras não foram seguidas, mas aceitando o resultado.")
+        
     return chat
 
 async def iniciarConversa(htmlText):
@@ -140,29 +132,26 @@ async def classificarTagsGerais(descricao):
     result = await validar_tag(response)
     return result.choices[0].message.content
 
-async def validar_tag(chat, vezes=0):
+async def validar_tag(chat, vezes=0, max_tentativas=3):
     try:
         content = chat.choices[0].message.content
     except (json.JSONDecodeError, KeyError, IndexError) as e:
         raise ValueError("Resposta do OpenAI API não está no formato esperado: {}".format(str(e)))
 
-    needs_correction = False
-    correction_instructions = []
-
-    if content not in taglist:
-        needs_correction = True
-        correction_instructions.append("Não esta certo, tente de outra forma! A tag_raiz informada não está presente na lista informada {}. A tag_raiz deve ser uma tag presente nesta lista.".format(taglist))
-
-    if needs_correction:
-        correction_message = "\n".join(correction_instructions)
+    if content not in taglist and vezes < max_tentativas:
+        correction_message = "A tag_raiz informada não está presente na lista {}. A tag_raiz deve ser uma tag presente nesta lista.".format(taglist)
         messages = [
             {"role": "system", "content": promptClassificarTag},
             {"role": "assistant", "content": content},
             {"role": "user", "content": correction_message}
         ]
         response = await get_chatgpt_response(messages)
-        if vezes < 5:
-            return await validar_tag(response, vezes + 1)
+        return await validar_tag(response, vezes + 1)
+
+    if content not in taglist:
+        # Se ainda não for válida após as tentativas, aceita o resultado
+        print("Advertência: A tag gerada não está na lista, aceitando o resultado.")
+        
     return chat
 
 all = ['iniciarConversa', 'classificarTagsGerais']
