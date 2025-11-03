@@ -1,5 +1,5 @@
 # Use a imagem oficial do Python como base
-FROM python:3.12-slim
+FROM python:3.9.21-slim
 
 # Defina o diretório de trabalho dentro do contêiner
 WORKDIR /app
@@ -22,8 +22,12 @@ RUN pip install --upgrade pip && \
 # Copie o restante do código do aplicativo para o contêiner
 COPY . .
 
+# Garanta que o script de inicialização seja executável
+RUN chmod +x /app/start.sh
+
 # Exponha a porta em que o aplicativo será executado
-EXPOSE 8001
+EXPOSE 8021
 
 # Comando para rodar o aplicativo Flask usando gunicorn
-CMD ["gunicorn", "-b", "0.0.0.0:8001", "run:app"]
+# Use o script para iniciar os dois processos
+ENTRYPOINT ["/app/start.sh"]
