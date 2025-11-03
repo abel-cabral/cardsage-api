@@ -34,7 +34,7 @@ A ideia central é que, ao submeter uma URL, a API extrai o texto da página, ge
 2. Crie um ambiente virtual:
 
 ```bash
-    python3 -m venv cardsage
+    python3.9 -m venv cardsage
     source cardsage/bin/activate  # Linux/Mac
     cardsage\Scripts\activate  # Windows
 ```
@@ -47,19 +47,21 @@ A ideia central é que, ao submeter uma URL, a API extrai o texto da página, ge
 4. Configure as variáveis de ambiente no arquivo .env:
 
 ```bash
-    OPENAI_API_KEY=""
-    PROJECT_ID=""
-    ORGANIZATION=""
     DBHOST=""
     DATABASE=""
     COLLECTION=""
-    TAGLIST=""
+    JWT_SECRET_KEY=""
+    SECRET_KEY=""
+    JWT_ACCESS_TOKEN_EXPIRES=""
+    REDIS_URL=""
+    TAGLIST="TECNOLOGIA,INOVAÇÃO,CURIOSIDADES,ELETRÔNICOS,LANÇAMENTO,APLICATIVOS,NOTÍCIAS,IA,PROGRAMAÇÃO,PET,DECORAÇÃO,ANIMES,MOBILIÁRIO,VIAGEM,FILMES,FESTAS,EDUCAÇÃO,JOGOS,MÚSICA,CULINÁRIA,OUTROS"
 ```
 
 5. Execute a aplicação:
 
 ```bash
-    python3 run.py   
+    python3 run.py
+    rq worker -u $REDIS_URL processar_fila (Em outro terminal para acionar a fila)
 ```
 
 ## Uso
