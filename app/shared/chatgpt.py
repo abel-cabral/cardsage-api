@@ -1,171 +1,139 @@
 import os
 import json
-from openai import AsyncOpenAI
+import aiohttp
 from dotenv import load_dotenv
 
+# Carrega variáveis de ambiente (.env)
 load_dotenv()
 
-# Verificar se a variável TAGLIST está carregada corretamente
+# Configurações da LLaMA local
+LLAMA_API_URL = "http://192.168.1.117:11434/api/generate"
+LLAMA_MODEL = "gemma:2b"
+
+# Lista de tags iniciais
 taglist = os.getenv('TAGLIST').split(',')
 
-client = AsyncOpenAI(
-    organization=os.getenv('ORGANIZATION'),
-    project=os.getenv('PROJECT_ID'),
-    api_key=os.getenv('OPENAI_API_KEY')
-)
-
-promptIntroducao = """
-Você receberá um texto. Sua tarefa é:
-
-1. Resumir o texto em até duas linhas (máximo de 200 caracteres).
-2. Gerar três tags que não sejam nenhuma desta lista: {0}.
-   - A soma dos caracteres das três tags (tag1, tag2, tag3) não pode ultrapassar 31 caracteres.
-3. Gerar um título para o texto (máximo de 31 caracteres).
-4. Listar todas as palavras-chave encontradas no texto.
-
-A resposta deve ser unicamente no formato JSON com as seguintes propriedades:
-- 'titulo': Título do resumo (máximo de 31 caracteres)
-- 'descricao': Resumo do texto (máximo de 200 caracteres)
-- 'palavras_chaves': Lista de palavras-chave
-- 'tag1': Primeira tag
-- 'tag2': Segunda tag
-- 'tag3': Terceira tag
-
-Obs: Se não houver informações suficientes, classifique todos os campos como 'Indefinido'.
-Se o texto estiver em outro idioma, traduza 'titulo' e 'descricao' para pt-BR.
-
-Formato esperado:
-{{
-    "titulo": "Título do resumo (máximo de 31 caracteres)",
-    "descricao": "Resumo do texto (máximo de 200 caracteres)",
-    "tag1": "Primeira tag",
-    "tag2": "Segunda tag",
-    "tag3": "Terceira tag",
-    "palavras_chaves": ["x", "y", "z"]
-}}
-""".format(taglist)
-
-promptClassificarTag = """
-Você receberá um array contendo 20 tags raízes e um texto.
+# Prompt principal — geração de resumo, título e tags
+promptIntroducao = f"""
+Você receberá um texto representado como tokens.
 Sua tarefa é:
 
-1. Retornar o nome da tag raiz que mais se relaciona com o texto.
-2. Listar todas as palavras-chave encontradas no texto.
+1. Resumir o conteúdo de forma clara e objetiva, SEMPRE em terceira pessoa
+   (ex: "O autor descreve...", "O texto apresenta...").
+2. Criar um título curto e representativo, com no máximo 31 caracteres.
+3. Gerar três tags que NÃO estejam nesta lista: {taglist}.
+4. Listar palavras-chave relevantes.
 
-A tag gerada deve ser necessariamente uma das seguintes tags: {0}.
-Se o texto parecer estranho ou sem sentido, possivelmente devido a um erro de extração, retorne 'Indefinido'.
+⚠️ Importante:
+- Não use "eu", "nós" ou expressões em primeira pessoa.
+- O campo "descricao" deve conter apenas o resumo em terceira pessoa.
 
-Formato esperado:
-Uma única palavra, que é o nome da tag raiz mais relevante.
-""".format(taglist)
-
-promptCorrecao = """
-Sua resposta anterior não atendeu aos requisitos. Por favor, forneça uma nova resposta que atenda aos seguintes requisitos:
-
-1. 'titulo': Título do resumo (máximo de 31 caracteres, jamais deve superar isso).
-2. 'descricao': Resumo do texto (máximo de 200 caracteres).
-3. 'tag1', 'tag2', 'tag3': A soma dos caracteres das três tags não pode ultrapassar 31 caracteres.
-4. 'palavras_chaves': Lista de palavras-chave.
-
-Formato esperado:
+Responda apenas em JSON, no formato:
 {{
-    "titulo": "Título do resumo (máximo de 31 caracteres)",
-    "descricao": "Resumo do texto (máximo de 200 caracteres)",
-    "tag1": "Primeira tag",
-    "tag2": "Segunda tag",
-    "tag3": "Terceira tag",
-    "palavras_chaves": ["x", "y", "z"]
+  "titulo": "Título curto (até 31 caracteres)",
+  "descricao": "Resumo do conteúdo em terceira pessoa",
+  "tag1": "Primeira tag",
+  "tag2": "Segunda tag",
+  "tag3": "Terceira tag",
+  "palavras_chaves": ["x", "y", "z"]
 }}
 """
 
-async def get_chatgpt_response(messages):
-    response = await client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        temperature=0.3
-    )
-    return response
+# Prompt para correção de formato JSON
+promptCorrecao = """
+Sua resposta anterior não está em JSON válido.
+Por favor, gere novamente no formato:
+{
+  "titulo": "...",
+  "descricao": "...",
+  "tag1": "...",
+  "tag2": "...",
+  "tag3": "...",
+  "palavras_chaves": ["x", "y", "z"]
+}
+"""
 
-async def validar_resposta(chat, vezes=0, max_tentativas=3):
-    try:
-        content = chat.choices[0].message.content
-        result = json.loads(content)
-    except (json.JSONDecodeError, KeyError, IndexError) as e:
-        if vezes < max_tentativas:
-            return await validar_resposta(response, vezes + 1)
-        # Se falhar após as tentativas, retorna o último resultado
-        print("Erro de formatação JSON, aceitando a resposta como está:", str(e))
-        return chat
+# --------------------------
+# 🔹 Funções auxiliares
+# --------------------------
 
-    needs_correction = False
-    correction_instructions = []
+async def chamar_llama(prompt, max_tokens=180):
+    """Requisição à API local do LLaMA"""
+    timeout = aiohttp.ClientTimeout(total=600)  # 2 minutos
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        payload = {
+            "model": LLAMA_MODEL,
+            "prompt": prompt,
+            "num_predict": max_tokens,
+            "temperature": 0.3,
+            "stream": False
+        }
+        async with session.post(LLAMA_API_URL, json=payload) as resp:
+            data = await resp.json()
+            return data.get("response", "").strip()
 
-    if len(result.get("titulo", "")) > 31:
-        needs_correction = True
-        correction_instructions.append("O campo 'titulo' excedeu 31 caracteres.")
-    if len(result.get("descricao", "")) > 200:
-        needs_correction = True
-        correction_instructions.append("O campo 'descricao' excedeu 200 caracteres.")
-    if len(result.get("tag1", "")) + len(result.get("tag2", "")) + len(result.get("tag3", "")) > 31:
-        needs_correction = True
-        correction_instructions.append("A soma das tags 'tag1', 'tag2' e 'tag3' excedeu o total máximo permitido de 31 caracteres. Gere novas tags menores.")
-
-    if needs_correction and vezes < max_tentativas:
-        correction_message = "\n".join(correction_instructions)
-        messages = [
-            {"role": "system", "content": promptCorrecao},
-            {"role": "assistant", "content": content},
-            {"role": "user", "content": correction_message}
-        ]
-        response = await get_chatgpt_response(messages)
-        return await validar_resposta(response, vezes + 1)
-
-    if needs_correction:
-        # Loga uma advertência mas aceita o resultado final
-        print("Advertência: Algumas regras não foram seguidas, mas aceitando o resultado.")
-        
-    return chat
-
-async def iniciarConversa(htmlText):
-    messages = [{"role": "system", "content": promptIntroducao}, {"role": "user", "content": htmlText}]
-    response = await get_chatgpt_response(messages)
-    result = await validar_resposta(response)
-    return result.choices[0].message.content
-
-async def classificarTagsGerais(descricao):
-    obj = {
-        "tagsRaizes": taglist,
-        "descricao": descricao
+async def get_json_from_llama(prompt, max_tokens=180, tentativas=3):
+    """Garante que a resposta venha em JSON válido"""
+    for _ in range(tentativas):
+        resposta = await chamar_llama(prompt, max_tokens)
+        try:
+            result = json.loads(resposta)
+            # Garantir que o título não ultrapasse 31 caracteres
+            if len(result.get("titulo", "")) > 31:
+                result["titulo"] = result["titulo"][:31]
+            return result
+        except json.JSONDecodeError:
+            print("⚠️ Resposta inválida, tentando novamente...")
+            prompt = f"{promptCorrecao}\n\nResposta anterior:\n{resposta}"
+    # Se falhar após tentativas
+    return {
+        "titulo": "Indefinido",
+        "descricao": "Indefinido",
+        "tag1": "Indefinido",
+        "tag2": "Indefinido",
+        "tag3": "Indefinido",
+        "palavras_chaves": ["Indefinido"]
     }
 
-    message = [
-        {"role": "system", "content": promptClassificarTag},
-        {"role": "user", "content": json.dumps(obj)}
-    ]
-    response = await get_chatgpt_response(message)
-    result = await validar_tag(response)
-    return result.choices[0].message.content
+# --------------------------
+# 🔹 Funções principais
+# --------------------------
 
-async def validar_tag(chat, vezes=0, max_tentativas=3):
-    try:
-        content = chat.choices[0].message.content
-    except (json.JSONDecodeError, KeyError, IndexError) as e:
-        raise ValueError("Resposta do OpenAI API não está no formato esperado: {}".format(str(e)))
+async def iniciarConversa(str):
+    """
+    Recebe tokens do front-end e gera resumo, título, tags e palavras-chave.
+    """
+    prompt = f"{promptIntroducao}\n\nTokens do conteúdo: {str}\n\n" \
+             "Use os tokens para gerar resumo, título, tags e palavras-chave em terceira pessoa."
+    result = await get_json_from_llama(prompt, max_tokens=180)
+    return result
 
-    if content not in taglist and vezes < max_tentativas:
-        correction_message = "A tag_raiz informada não está presente na lista {}. A tag_raiz deve ser uma tag presente nesta lista.".format(taglist)
-        messages = [
-            {"role": "system", "content": promptClassificarTag},
-            {"role": "assistant", "content": content},
-            {"role": "user", "content": correction_message}
-        ]
-        response = await get_chatgpt_response(messages)
-        return await validar_tag(response, vezes + 1)
+async def classificarTagsGerais(descricao):
+    """
+    Classifica a descrição em **uma única tag da lista fornecida**.
+    """
+    prompt = f"""
+Você receberá uma descrição e uma lista de tags principais.
 
-    if content not in taglist:
-        # Se ainda não for válida após as tentativas, aceita o resultado
-        print("Advertência: A tag gerada não está na lista, aceitando o resultado.")
-        
-    return chat
+Escolha apenas UMA tag da lista abaixo que mais se relacione ao conteúdo:
+{taglist}
+
+⚠️ Regras importantes:
+- Retorne **somente uma palavra** presente nesta lista.
+- Não adicione explicações, exemplos ou texto adicional.
+- Se a descrição não se encaixar claramente, retorne "OUTROS".
+
+Descrição do conteúdo:
+{descricao}
+"""
+
+    resposta = await chamar_llama(prompt, max_tokens=20)
+    resposta = resposta.strip().upper()  # Padroniza para maiúscula
+
+    if resposta not in taglist:
+        print(f"⚠️ Tag '{resposta}' não está na lista. Retornando 'OUTROS'.")
+        resposta = "OUTROS"
+
+    return resposta
 
 all = ['iniciarConversa', 'classificarTagsGerais']

@@ -9,11 +9,11 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 load_dotenv()
 
-client = MongoClient(os.getenv('DBHOST'), 27017)
-# Substitua 'mydatabase' pelo nome do seu banco de dados MongoDB
+# Conectar ao MongoDB Atlas
+cluster_url = os.getenv("DBHOST")
+client = MongoClient(cluster_url)
 db = client[os.getenv('DATABASE')]
-# Substitua 'mycollection' pelo nome da sua coleção MongoDB
-collection = db[os.getenv('COLLECTION')]
+collection = db['catalogo-de-links']
 
 def collection(collection=False):
     if (collection):
@@ -21,21 +21,23 @@ def collection(collection=False):
     return db[os.getenv('COLLECTION')]
 
 # Função para adicionar um novo card à tag raiz ou cria-la
-def adicionar_card(novo_card):
+def adicionar_card(novo_card, user_id):
+    print('Entrou no card com o ID: ' + user_id)
     # Obter a coleção
     db = collection()
-    user_id = get_jwt_identity()
 
     # Gerar um ID único para o novo card
     novo_card["_id"] = str(uuid.uuid4())
 
     # Adicionar o novo card ao array de cards no documento da tag raiz
-    novo_card['operacaoMongo'] = db.update_one(
+    resultado = db.update_one(
         {"user_id": user_id},
         {"$push": {"cards": novo_card}},
         upsert=True
     )
 
+    # Salva apenas 1 ou 0 na propriedade
+    novo_card['operacaoMongo'] = 1 if resultado.modified_count > 0 or resultado.upserted_id else 0
     return novo_card
 
 # Função para atualizar card adicionando url
@@ -53,10 +55,7 @@ def atualizar_card(card_id, imageUrl, user_id):
     return resultado
 
 
-def todos_cards():
-     # Obter o ID do usuário atual
-    user_id = get_jwt_identity()
-
+def todos_cards(user_id):
     # Recuperar todos os documentos associados ao ID do usuário
     documentos = collection().find(
         {"user_id": user_id},

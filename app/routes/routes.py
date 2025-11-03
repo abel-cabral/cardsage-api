@@ -4,6 +4,7 @@ import json
 import os
 
 from flask import Blueprint, jsonify, request
+from rq import Queue
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..shared.util import purificarHTML
 from ..shared.chatgpt import iniciarConversa, classificarTagsGerais
@@ -11,6 +12,8 @@ from ..shared.mongodb import adicionar_card, collection, todos_cards, deletar_ca
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
 from ..shared.mongodb_search import search_query, search_tags
+from ..shared.worker import processar_item
+from ..shared.cache_utils import update_cache
 
 load_dotenv()
 
@@ -19,79 +22,62 @@ main = Blueprint('main', __name__)
 # Criar uma instância do cliente Redis
 r = redis.Redis.from_url(os.getenv('REDIS_URL'))
 
+# Cria uma fila no Redis
+q = Queue('processar_fila', connection=r)
+
 @main.route('/api/save-item', methods=['POST'])
 @jwt_required()
 def create_item():
-    # TRATANDO O REQUISIÇÃO E VALIDANDO
     data = request.get_json()
     url = data.get('url', '')
     html = data.get('html', '')
-    
+
     if not url:
-       return jsonify("Necessário passar um campo 'url' no json"), 422
-   
+        return jsonify("Necessário passar um campo 'url' no json"), 422
     if not html:
         return jsonify("Necessário passar um campo 'html' no json"), 422
-    
-    # Verifica se a URL já existe no banco para o usuário logado
+
     user_id = get_jwt_identity()
     documento_existente = collection().find_one({"user_id": user_id, "cards.url": url})
     if documento_existente:
-        return jsonify("Já existe uma URL associado a este usuário"), 409
-    
-    # Extrai TEXTO HTML da URL
+        return jsonify("Já existe uma URL associada a este usuário"), 409
+
     html_texto = purificarHTML(html)
+
+    # 🔹 Enfileira o processamento
+    job = q.enqueue(processar_item, user_id, url, html_texto, job_timeout=1000)
+
+    # Polling para esperar o job terminar
+    while not job.is_finished and not job.is_failed:
+        import time
+        time.sleep(1)
     
-    # EXTRAINDO TAGS, RESUMO E DESCRIÇÃO
-    chatHtml = asyncio.run(iniciarConversa(html_texto))
-    chatData = json.loads(chatHtml)
-    tag = asyncio.run(classificarTagsGerais(chatData['descricao']))
+    if job.is_failed:
+        return jsonify({"message": "Erro ao processar o item"}), 500
     
-    chatData['url'] = url
-    chatData['tag_raiz'] = tag
-    chatData['conteudo'] = html_texto
-    chatData['imageUrl'] = 'https://images.unsplash.com/photo-1557724630-96de91632c3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w2MTg2MTd8MHwxfHNlYXJjaHwxfHx1bmRlZmluZWR8ZW58MHwwfHx8MTcxNzg2MzEzMnww&ixlib=rb-4.0.3&q=80&w=1080'
-    
-    # SALVANDO NO BANCO DE DADOS
-    mongo_response = adicionar_card(chatData)
-    
-    # Verificar se a atualização foi bem-sucedida
-    if mongo_response['operacaoMongo'] == 0:
-        return jsonify("Erro ao salvar dados no banco."), 415
-    
-    # Atualiza o cache após a inclusão de um novo card
-    update_cache()
-    
-    # TRATANDO O RETORNO
-    del mongo_response['operacaoMongo']
-    del mongo_response['conteudo']
-    del mongo_response['palavras_chaves']
-    
-    return jsonify(mongo_response), 201
+    # Retorno do valor processado
+    return jsonify(job.result), 201
 
 @main.route('/api/list-items', methods=['GET'])
 @jwt_required()
 def get_items():
     # Use uma chave única para representar os dados que deseja armazenar em cache
-    cache_key = get_jwt_identity()
-    cached_data = r.get(cache_key)
+    #user_id = get_jwt_identity()
+    #cached_data = r.get(user_id)
 
-    if cached_data:
-        # Decodifica os dados de bytes para string antes de carregá-los como JSON
-        data = json.loads(cached_data.decode('utf-8'))
-        return jsonify(data), 200
-    else:
-        items = todos_cards()
-        # Certifique-se de converter 'items' para uma string JSON antes de armazenar no cache
-        items_json = json.dumps(items)
-        r.set(cache_key, items_json)
+    user_id = get_jwt_identity()
+    items = todos_cards(user_id)
+    return items, 200
 
-        # Carregar os itens recém-adicionados para construir a resposta
-        data = json.loads(items_json)
-
-        if data:
-            return jsonify(data), 200
-        return '', 200
+    # if cached_data:
+    #     # Decodifica os dados de bytes para string antes de carregá-los como JSON
+    #     data = json.loads(cached_data.decode('utf-8'))
+    #     return data, 200
+    # else:
+    #     # Use uma chave única para representar os dados que deseja armazenar em cache
+    #     user_id = get_jwt_identity()
+    #     items = todos_cards(user_id)
+    #     return items, 200
 
 @main.route('/api/search-items/<string:query>', methods=['GET'])
 @jwt_required()
@@ -136,7 +122,7 @@ def update_item():
         return jsonify("Nenhum documento foi atualizado. Verifique os parâmetros fornecidos."), 400
 
     # Atualiza o cache após a atualização (implementação da função update_cache)
-    update_cache()
+    #update_cache(user_id)
 
     return '', 204
 
@@ -153,24 +139,5 @@ def delete_item(card_id):
     response = deletar_card_por_id(user_id, card_id)
     
     # Atualiza o cache para a rota de listagem de itens
-    update_cache()
+    #update_cache(user_id)
     return response, 200
-
-@main.route('/api/redis-keys', methods=['GET'])
-def redis_keys():
-    try:
-        # Obtém todas as chaves armazenadas no Redis
-        keys = r.keys('*')
-        # Cria um dicionário para armazenar as chaves e seus valores
-        cache_contents = {}
-        for key in keys:
-            cache_contents[key.decode('utf-8')] = r.get(key).decode('utf-8')
-        return jsonify(cache_contents), 200
-    except Exception as e:
-        return jsonify({"message": "Error accessing Redis", "error": str(e)}), 500
-
-def update_cache():
-    # Atualiza o cache para a lista de itens
-    cache_key = get_jwt_identity()
-    items = todos_cards()
-    r.set(cache_key, items)
