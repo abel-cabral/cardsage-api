@@ -5,3 +5,6 @@ __pycache__/
 
 # Local environment
 .env
+
+# Itens que falharam definitivamente no processamento da fila
+logs_error.txt

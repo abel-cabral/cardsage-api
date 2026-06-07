@@ -61,7 +61,7 @@ A ideia central é que, ao submeter uma URL, a API extrai o texto da página, ge
 
 ```bash
     python3 run.py
-    rq worker -u $REDIS_URL processar_fila (Em outro terminal para acionar a fila)
+    python3 queue_worker.py (Em outro terminal — consome a fila de processamento de itens)
 ```
 
 ## Uso

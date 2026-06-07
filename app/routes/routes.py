@@ -5,17 +5,14 @@ import os
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..shared.util import purificarHTML
-from ..shared.mongodb import adicionar_card, collection, todos_cards, deletar_card_por_id, atualizar_card
+from ..shared.mongodb import collection, todos_cards, deletar_card_por_id, atualizar_card
 from ..shared.mongodb_search import search_query, search_tags
-from ..shared.worker import processar_item
+from ..shared.fila import enfileirar_item
 from ..shared.cache_utils import update_cache
 
 main = Blueprint('main', __name__)
 
 r = redis.Redis.from_url(os.getenv('REDIS_URL'))
-
-_CAMPOS_PRIVADOS = {'operacaoMongo', 'conteudo', 'palavras_chaves', 'embedding'}
-
 
 @main.route('/api/save-item', methods=['POST'])
 @jwt_required()
@@ -35,15 +32,9 @@ def create_item():
         return jsonify("Já existe uma URL associada a este usuário"), 409
 
     html_texto = purificarHTML(html)
-    resultado = processar_item(user_id, url, html_texto)
+    enfileirar_item(user_id, url, html_texto)
 
-    if not resultado:
-        return jsonify("Erro ao processar e salvar dados."), 500
-
-    update_cache(user_id)
-
-    resposta = {k: v for k, v in resultado.items() if k not in _CAMPOS_PRIVADOS}
-    return jsonify(resposta), 201
+    return jsonify({"msg": "Item adicionado à fila de processamento"}), 202
 
 
 @main.route('/api/list-items', methods=['GET'])
