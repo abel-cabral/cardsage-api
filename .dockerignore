@@ -1,0 +1,29 @@
+# Credenciais — NUNCA devem entrar na imagem
+.env
+.env.*
+*.env
+
+# Ambiente virtual local
+cardsage/
+venv/
+.venv/
+
+# Git e ferramentas de dev
+.git/
+.gitignore
+.github/
+.vscode/
+.DS_Store
+.claude/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Outros artefatos locais
+path/
+*.log
+*.md

@@ -13,7 +13,6 @@ load_dotenv()
 cluster_url = os.getenv("DBHOST")
 client = MongoClient(cluster_url)
 db = client[os.getenv('DATABASE')]
-collection = db['catalogo-de-links']
 
 def collection(collection=False):
     if (collection):

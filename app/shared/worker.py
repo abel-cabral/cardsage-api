@@ -1,20 +1,17 @@
-import os
 import asyncio
-import redis
-import json
 
-from dotenv import load_dotenv
 from .chatgpt import iniciarConversa, classificarTagsGerais
 from .mongodb import adicionar_card
-from .cache_utils import add_item_to_cache
-
-load_dotenv()
-r = redis.Redis.from_url(os.getenv('REDIS_URL'))
 
 async def processar_async(user_id, url, html_texto):
     """Processamento real da IA e salvamento"""
     chatData = await iniciarConversa(html_texto)
     tag = await classificarTagsGerais(chatData['descricao'])
+
+    # Normaliza tags para minúsculo para garantir busca case-insensitive consistente
+    for field in ('tag1', 'tag2', 'tag3'):
+        if isinstance(chatData.get(field), str):
+            chatData[field] = chatData[field].lower()
 
     chatData['url'] = url
     chatData['tag_raiz'] = tag
@@ -27,19 +24,14 @@ async def processar_async(user_id, url, html_texto):
         print("❌ Erro ao salvar no MongoDB.")
         return False
 
-    # Atualiza o cache para a lista de itens
-    # add_item_to_cache(user_id, mongo_response)
-
     print(f"✅ Item processado e salvo: {url}")
     return mongo_response
 
 
 def processar_item(user_id, url, html_texto):
-    """Wrapper síncrono (para ser usado pelo worker do RQ)"""
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    resultado = loop.run_until_complete(processar_async(user_id, url, html_texto))
-    loop.close()
-    return resultado  # ← retorna o que processar_async retorna
-
-
+    try:
+        return loop.run_until_complete(processar_async(user_id, url, html_texto))
+    finally:
+        loop.close()
