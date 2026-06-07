@@ -9,9 +9,6 @@ from ..shared.mongodb import adicionar_card, collection, todos_cards, deletar_ca
 from ..shared.mongodb_search import search_query, search_tags
 from ..shared.worker import processar_item
 from ..shared.cache_utils import update_cache
-from dotenv import load_dotenv
-
-load_dotenv()
 
 main = Blueprint('main', __name__)
 

@@ -1,9 +1,6 @@
 import os
 import json
 from openai import AsyncOpenAI
-from dotenv import load_dotenv
-
-load_dotenv()
 
 taglist = os.getenv('TAGLIST', '').split(',')
 

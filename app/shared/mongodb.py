@@ -3,11 +3,7 @@ import json
 import uuid
 
 from pymongo import MongoClient
-from dotenv import load_dotenv
 from bson import ObjectId
-from flask_jwt_extended import jwt_required, get_jwt_identity
-
-load_dotenv()
 
 # Conectar ao MongoDB Atlas
 cluster_url = os.getenv("DBHOST")
