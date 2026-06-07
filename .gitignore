@@ -5,5 +5,3 @@ __pycache__/
 
 # Local environment
 .env
-# Infisical
-infisical/.env
