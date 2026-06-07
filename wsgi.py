@@ -1,4 +1,3 @@
-from app import app
+from run import _bootstrap, app  # bootstrap já executado ao importar run
 
-if __name__ == "__main__":
-    app.run()
+__all__ = ["app"]
