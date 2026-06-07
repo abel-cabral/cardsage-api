@@ -74,15 +74,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build e push da imagem
+      - name: Build e push da imagem (amd64 + arm64)
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/websage-api:${{ steps.version.outputs.next }}
             ${{ secrets.DOCKERHUB_USERNAME }}/websage-api:latest
-          # Cache entre runs via GitHub Actions cache
           cache-from: type=gha
           cache-to:   type=gha,mode=max
 
