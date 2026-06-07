@@ -1,22 +1,22 @@
 import os
 import json
-import aiohttp
+from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
-# Carrega variáveis de ambiente (.env)
 load_dotenv()
 
-# Configurações da LLaMA local
-LLAMA_API_URL = "http://192.168.1.117:11434/api/generate"
-LLAMA_MODEL = "gemma:2b"
+taglist = os.getenv('TAGLIST', '').split(',')
 
-# Lista de tags iniciais
-taglist = os.getenv('TAGLIST').split(',')
+RKLLAMA_URL = os.getenv('RKLLAMA_URL', 'http://localhost:8080')
+MODEL = os.getenv('RKLLAMA_MODEL', 'qwen2.5:3b')
 
-# Prompt principal — geração de resumo, título e tags
+client = AsyncOpenAI(
+    base_url=f"{RKLLAMA_URL}/v1",
+    api_key='rkllama'
+)
+
 promptIntroducao = f"""
-Você receberá um texto representado como tokens.
-Sua tarefa é:
+Você receberá um texto. Sua tarefa é:
 
 1. Resumir o conteúdo de forma clara e objetiva, SEMPRE em terceira pessoa
    (ex: "O autor descreve...", "O texto apresenta...").
@@ -24,14 +24,10 @@ Sua tarefa é:
 3. Gerar três tags que NÃO estejam nesta lista: {taglist}.
 4. Listar palavras-chave relevantes.
 
-⚠️ Importante:
-- Não use "eu", "nós" ou expressões em primeira pessoa.
-- O campo "descricao" deve conter apenas o resumo em terceira pessoa.
-
-Responda apenas em JSON, no formato:
+Responda APENAS em JSON válido, sem markdown, sem explicações, no formato:
 {{
   "titulo": "Título curto (até 31 caracteres)",
-  "descricao": "Resumo do conteúdo em terceira pessoa",
+  "descricao": "Resumo em terceira pessoa",
   "tag1": "Primeira tag",
   "tag2": "Segunda tag",
   "tag3": "Terceira tag",
@@ -39,101 +35,109 @@ Responda apenas em JSON, no formato:
 }}
 """
 
-# Prompt para correção de formato JSON
-promptCorrecao = """
-Sua resposta anterior não está em JSON válido.
-Por favor, gere novamente no formato:
-{
-  "titulo": "...",
-  "descricao": "...",
-  "tag1": "...",
-  "tag2": "...",
-  "tag3": "...",
-  "palavras_chaves": ["x", "y", "z"]
-}
+promptClassificarTag = f"""
+Classifique a descrição em UMA das categorias abaixo. Retorne APENAS o nome exato da categoria.
+
+Categorias e quando usar cada uma:
+- Desenvolvimento: programação, código, APIs, frameworks, bibliotecas, linguagens de programação, DevOps
+- Ciência: pesquisa científica, física, química, biologia, matemática, engenharia
+- Educação: tutoriais didáticos, ensino, aprendizado geral, explicações técnicas
+- Cursos: cursos pagos, formações, certificações, treinamentos, plataformas de ensino
+- Inovação: startups, tendências tecnológicas, transformação digital, novas tecnologias empresariais
+- Notícias: jornalismo, atualidades, eventos recentes, política
+- Games: jogos, videogames, consoles, esports, reviews de games
+- Filmes: cinema, filmes, críticas, trailers
+- Séries: séries de TV, streaming, episódios
+- Animes: anime, mangá, cultura japonesa
+- Festas: eventos sociais, festas, shows, entretenimento ao vivo
+- Saúde: medicina, bem-estar, fitness, nutrição, psicologia
+- RedesSociais: redes sociais, influenciadores, marketing digital, engajamento
+- Música: músicas, bandas, artistas, álbuns, playlists
+- Livros: literatura, livros, autores, resenhas literárias
+- Moda: roupas, estilo, tendências de moda, beleza
+- Culinária: receitas, gastronomia, restaurantes, culinária
+- Viagens: turismo, destinos, dicas de viagem
+- Arte: artes visuais, design gráfico, criatividade, ilustração
+- Promoções: ofertas, descontos, cupons, compras
+
+Lista exata de categorias válidas: {taglist}
+
+REGRAS:
+- Retorne SOMENTE o nome exato de uma categoria da lista acima.
+- Priorize a categoria MAIS ESPECÍFICA.
+- "Desenvolvimento" tem prioridade sobre "Inovação" para conteúdo de programação.
+- Se nada se encaixar, retorne "Indefinido".
+
+Descrição a classificar:
 """
 
-# --------------------------
-# 🔹 Funções auxiliares
-# --------------------------
 
-async def chamar_llama(prompt, max_tokens=180):
-    """Requisição à API local do LLaMA"""
-    timeout = aiohttp.ClientTimeout(total=600)  # 2 minutos
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-        payload = {
-            "model": LLAMA_MODEL,
-            "prompt": prompt,
-            "num_predict": max_tokens,
-            "temperature": 0.3,
-            "stream": False
-        }
-        async with session.post(LLAMA_API_URL, json=payload) as resp:
-            data = await resp.json()
-            return data.get("response", "").strip()
+def _extrair_json(text: str) -> str:
+    """Remove markdown fences que modelos menores costumam gerar."""
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        start = 1 if lines[0].startswith("```") else 0
+        end = -1 if lines[-1].strip() == "```" else len(lines)
+        text = "\n".join(lines[start:end]).strip()
+    return text
 
-async def get_json_from_llama(prompt, max_tokens=180, tentativas=3):
-    """Garante que a resposta venha em JSON válido"""
-    for _ in range(tentativas):
-        resposta = await chamar_llama(prompt, max_tokens)
+
+async def _chat(messages: list) -> str:
+    response = await client.chat.completions.create(
+        model=MODEL,
+        messages=messages,
+        temperature=0.3
+    )
+    return response.choices[0].message.content
+
+
+async def _get_json(messages: list, tentativas: int = 3) -> dict:
+    for i in range(tentativas):
+        content = await _chat(messages)
         try:
-            result = json.loads(resposta)
-            # Garantir que o título não ultrapasse 31 caracteres
+            result = json.loads(_extrair_json(content))
+            # Trunca título se o modelo ignorar o limite
             if len(result.get("titulo", "")) > 31:
                 result["titulo"] = result["titulo"][:31]
             return result
-        except json.JSONDecodeError:
-            print("⚠️ Resposta inválida, tentando novamente...")
-            prompt = f"{promptCorrecao}\n\nResposta anterior:\n{resposta}"
-    # Se falhar após tentativas
+        except (json.JSONDecodeError, ValueError):
+            print(f"⚠️ JSON inválido na tentativa {i + 1}, tentando novamente...")
+            messages = messages + [
+                {"role": "assistant", "content": content},
+                {"role": "user", "content": "Resposta inválida. Retorne APENAS JSON válido, sem markdown."}
+            ]
+
     return {
-        "titulo": "Indefinido",
-        "descricao": "Indefinido",
-        "tag1": "Indefinido",
-        "tag2": "Indefinido",
-        "tag3": "Indefinido",
+        "titulo": "Indefinido", "descricao": "Indefinido",
+        "tag1": "Indefinido", "tag2": "Indefinido", "tag3": "Indefinido",
         "palavras_chaves": ["Indefinido"]
     }
 
-# --------------------------
-# 🔹 Funções principais
-# --------------------------
 
-async def iniciarConversa(str):
-    """
-    Recebe tokens do front-end e gera resumo, título, tags e palavras-chave.
-    """
-    prompt = f"{promptIntroducao}\n\nTokens do conteúdo: {str}\n\n" \
-             "Use os tokens para gerar resumo, título, tags e palavras-chave em terceira pessoa."
-    result = await get_json_from_llama(prompt, max_tokens=180)
-    return result
+async def iniciarConversa(html_texto: str) -> dict:
+    messages = [
+        {"role": "system", "content": promptIntroducao},
+        {"role": "user", "content": html_texto}
+    ]
+    return await _get_json(messages)
 
-async def classificarTagsGerais(descricao):
-    """
-    Classifica a descrição em **uma única tag da lista fornecida**.
-    """
-    prompt = f"""
-Você receberá uma descrição e uma lista de tags principais.
 
-Escolha apenas UMA tag da lista abaixo que mais se relacione ao conteúdo:
-{taglist}
+async def classificarTagsGerais(descricao: str) -> str:
+    messages = [
+        {"role": "system", "content": promptClassificarTag + descricao}
+    ]
+    for _ in range(3):
+        content = (await _chat(messages)).strip()
+        if content in taglist:
+            return content
+        messages = messages + [
+            {"role": "assistant", "content": content},
+            {"role": "user", "content": f"'{content}' não está na lista. Retorne somente uma das: {taglist}"}
+        ]
+        print(f"⚠️ Tag '{content}' fora da lista, tentando novamente...")
 
-⚠️ Regras importantes:
-- Retorne **somente uma palavra** presente nesta lista.
-- Não adicione explicações, exemplos ou texto adicional.
-- Se a descrição não se encaixar claramente, retorne "OUTROS".
+    return "Indefinido"
 
-Descrição do conteúdo:
-{descricao}
-"""
 
-    resposta = await chamar_llama(prompt, max_tokens=20)
-    resposta = resposta.strip().upper()  # Padroniza para maiúscula
-
-    if resposta not in taglist:
-        print(f"⚠️ Tag '{resposta}' não está na lista. Retornando 'OUTROS'.")
-        resposta = "OUTROS"
-
-    return resposta
-
-all = ['iniciarConversa', 'classificarTagsGerais']
+__all__ = ['iniciarConversa', 'classificarTagsGerais']

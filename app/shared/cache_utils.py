@@ -2,7 +2,6 @@ import json
 import os
 import redis
 
-from flask_jwt_extended import get_jwt_identity
 from .mongodb import todos_cards
 
 

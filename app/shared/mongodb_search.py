@@ -1,6 +1,6 @@
+import re
 
 from flask_jwt_extended import get_jwt_identity
-from bson import ObjectId
 from .mongodb import collection
 
 def search_query(query):
@@ -84,33 +84,29 @@ def search_query(query):
 def search_tags(tags_para_buscar):
     colecao = collection()
     user_id = get_jwt_identity()
-    
-    tags_lower = [tag.lower() for tag in tags_para_buscar]
+    tags_lower = [t.lower() for t in tags_para_buscar]
 
-    # Construir a query para buscar documentos
-    query = {
-        '$or': [
-            {'cards.tag1': {'$in': tags_lower}},
-            {'cards.tag2': {'$in': tags_lower}},
-            {'cards.tag3': {'$in': tags_lower}}
-        ]
-    }
+    # Regex case-insensitive para cada tag em cada campo — compatível com dados antigos (caixa mista)
+    or_conditions = [
+        {f'cards.tag{i}': {'$regex': f'^{re.escape(tag)}$', '$options': 'i'}}
+        for tag in tags_para_buscar
+        for i in range(1, 4)
+    ]
 
-    # Executar a query e obter os resultados
-    cursor = colecao.find(query)
-    print(cursor)
+    cursor = colecao.find(
+        {'user_id': user_id, '$or': or_conditions},
+        {'cards.embedding': 0, 'cards.conteudo': 0, 'cards.palavras_chaves': 0}
+    )
 
-    # Lista para armazenar os resultados finais
     resultados = []
-
-    # Iterar sobre os documentos retornados
     for doc in cursor:
-        print(doc)
-        # Verificar se pelo menos uma das tags está presente nos campos de tags do documento
-        if any(tag.lower() in tags_lower for tag in doc['cards'].values() if isinstance(tag, str)):
-            resultados.append({
-                '_id': str(doc['_id']),
-                'cards': doc['cards']
-            })
+        cards_match = [
+            card for card in doc.get('cards', [])
+            if any(card.get(f'tag{i}', '').lower() in tags_lower for i in range(1, 4))
+        ]
+        if cards_match:
+            for card in cards_match:
+                card['_id'] = str(card['_id'])
+            resultados.append({'_id': str(doc['_id']), 'cards': cards_match})
 
     return resultados
